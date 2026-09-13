@@ -1,0 +1,42 @@
+name: Refresh data
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # daily, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rebuild Economic Index data
+        run: python pipeline/build.py
+
+      - name: Refresh Claude Code npm signals
+        run: python pipeline/signals.py
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data pipeline/cache
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Refresh adoption data ($(date -u +%Y-%m-%d))"
+            git push
+          fi

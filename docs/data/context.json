@@ -1,0 +1,44 @@
+[
+  {
+    "value": "39%",
+    "label": "of professional developers use Claude Code at work (47% in the US), up from 18% in January 2026",
+    "source": "JetBrains Developer Ecosystem Survey, 15,000+ developers",
+    "as_of": "May–Jul 2026",
+    "url": "https://blog.jetbrains.com/research/2026/08/ai-coding-agent-adoption-2026/"
+  },
+  {
+    "value": ">25%",
+    "label": "of Claude Code's global user base is in Asia-Pacific",
+    "source": "Anthropic, Seoul office announcement",
+    "as_of": "Oct 2025",
+    "url": "https://www.anthropic.com/news/seoul-becomes-third-anthropic-office-in-asia-pacific"
+  },
+  {
+    "value": "6×",
+    "label": "growth in Korean weekly active Claude Code users in four months",
+    "source": "Anthropic, Seoul office announcement",
+    "as_of": "Oct 2025",
+    "url": "https://www.anthropic.com/news/seoul-becomes-third-anthropic-office-in-asia-pacific"
+  },
+  {
+    "value": "10×",
+    "label": "year-over-year growth in Asia-Pacific run-rate revenue",
+    "source": "Anthropic, Tokyo office announcement",
+    "as_of": "Oct 2025",
+    "url": "https://www.anthropic.com/news/opening-our-tokyo-office"
+  },
+  {
+    "value": ">9×",
+    "label": "year-over-year revenue growth in EMEA, Anthropic's fastest-growing region",
+    "source": "Reported by Createwith from Anthropic",
+    "as_of": "Apr 2026",
+    "url": "https://www.createwith.com/tool/claude/updates/claude-revenue-surges-9-as-anthropic-expands-enterprise-footprint-across-europe"
+  },
+  {
+    "value": "24.4%",
+    "label": "of claude.ai web visits come from the US; then India 10.9%, UK 4.5%, Japan 3.6%, France 3.3%",
+    "source": "Similarweb",
+    "as_of": "Aug 2026",
+    "url": "https://www.similarweb.com/website/claude.ai/"
+  }
+]

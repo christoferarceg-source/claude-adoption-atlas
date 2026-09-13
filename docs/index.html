@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claude Adoption Atlas</title>
+<meta name="description" content="Where Claude and Claude Code are adopted, by region, country and state, refreshed from Anthropic's Economic Index.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="#map">Claude Adoption Atlas</a>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button type="button" role="tab" id="tab-map" aria-controls="panel-map" data-tab="map">Map</button>
+      <button type="button" role="tab" id="tab-insights" aria-controls="panel-insights" data-tab="insights">Insights</button>
+      <button type="button" role="tab" id="tab-about" aria-controls="panel-about" data-tab="about">About the data</button>
+    </nav>
+    <p class="freshness" id="freshness">Loading data…</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="panel-map" role="tabpanel" aria-labelledby="tab-map">
+    <div class="controls">
+      <label for="metric"><span class="label">Colour by</span><select id="metric"></select></label>
+      <label for="period"><span class="label">Period</span><select id="period"></select></label>
+      <label for="region"><span class="label">Region</span><select id="region"></select></label>
+      <label for="search" class="grow"><span class="label">Find a country</span><input id="search" list="country-list" placeholder="e.g. Brazil or BRA" autocomplete="off"><datalist id="country-list"></datalist></label>
+    </div>
+    <div class="map-layout">
+      <figure class="map-fig">
+        <div class="map-top">
+          <nav class="crumbs" id="crumbs" aria-label="Drill-down path"></nav>
+          <button type="button" class="ghost" id="zoom-out" hidden>← Zoom out</button>
+        </div>
+        <div class="map-box"><svg id="map" role="img" aria-label="World map of Claude adoption. Click a country to drill down."></svg></div>
+        <div class="legend" id="legend"></div>
+        <p class="note" id="map-note">Click a country to see its states or provinces. Drag to pan, scroll to zoom.</p>
+      </figure>
+      <aside class="panel" id="panel" aria-live="polite"><p class="note">Loading…</p></aside>
+    </div>
+  </section>
+
+  <section id="panel-insights" role="tabpanel" aria-labelledby="tab-insights" hidden>
+    <div class="sec-head">
+      <span class="label">Generated from the latest data · <span id="ins-period"></span></span>
+      <h1>What the adoption data says right now</h1>
+      <p class="dek">These findings are rewritten automatically each time Anthropic publishes new Economic Index data. The Claude Code download trend updates daily.</p>
+    </div>
+    <div class="ins-grid" id="insight-cards"></div>
+
+    <div class="charts">
+      <figure class="wide">
+        <figcaption><span class="t">Share of global Claude.ai usage by region</span><span class="s">All regions share one scale, so heights are comparable. Hover a point for its AUI.</span></figcaption>
+        <div class="sm-grid" id="chart-regions"></div>
+      </figure>
+      <figure class="wide">
+        <figcaption><span class="t">Biggest gains and losses in share of usage</span><span class="s" id="movers-sub"></span></figcaption>
+        <div id="chart-movers"></div>
+      </figure>
+      <figure>
+        <figcaption><span class="t">Income vs intensity</span><span class="s" id="income-sub">GDP per working-age person against AUI, log–log. Dot size is share of usage.</span></figcaption>
+        <div id="chart-income"></div>
+      </figure>
+      <figure>
+        <figcaption><span class="t">How Claude is used, by intensity tier</span><span class="s">Share of conversations, weighted by each country's usage</span></figcaption>
+        <div class="chart-legend"><span><i style="background:var(--s1)"></i>Work</span><span><i style="background:var(--s2)"></i>Personal</span><span><i style="background:var(--s3)"></i>Coursework</span></div>
+        <div id="chart-tiers"></div>
+      </figure>
+      <figure class="wide">
+        <figcaption><span class="t">Claude Code installs per day (npm, worldwide)</span><span class="s">The line is the 7-day average and the shaded area shows daily downloads. Days npm failed to count appear as gaps. Hover for values.</span></figcaption>
+        <div id="chart-npm"></div>
+      </figure>
+    </div>
+
+    <div class="sec-head" style="margin-top:48px">
+      <span class="label">Context from other sources</span>
+      <h2>Claude Code by region</h2>
+      <p class="dek">Anthropic doesn't publish Claude Code usage by country, so these point-in-time figures fill the gap. Each shows its source and date.</p>
+    </div>
+    <div class="facts" id="context-facts"></div>
+  </section>
+
+  <section id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden>
+    <div class="prose">
+      <span class="label">Methodology</span>
+      <h1>About the data</h1>
+      <h2>Where the numbers come from</h2>
+      <p>Country and state/province figures come from the <a href="https://huggingface.co/datasets/Anthropic/EconomicIndex">Anthropic Economic Index</a> (CC-BY), a privacy-preserving sample of Claude.ai conversations (Free, Pro and Max, plus Cowork from 2026), geolocated by IP address. Anthropic publishes aggregates only, never raw IPs or individual records. This site cannot see anything more granular than what Anthropic releases.</p>
+      <h2>How fresh it is</h2>
+      <p>A GitHub Action runs every day. It checks the dataset for new releases and rebuilds the site's data when one appears, and it refreshes the npm download counts. Anthropic publishes new geography data every few months, covering periods that ended weeks earlier. The period menu on the map shows exactly which months are available.</p>
+      <h2>The two core measures</h2>
+      <ul>
+        <li><b>Share of global usage</b> is a country's percentage of all geolocated conversations in the period.</li>
+        <li><b>Intensity (AUI, the Anthropic AI Usage Index)</b> is that share divided by the country's share of the world's working-age (15–64) population. 1.0 means usage proportional to population, and 3.0 means three times more. It's recomputed from raw shares so every period is comparable. For recent periods it matches Anthropic's published index to ±0.01.</li>
+      </ul>
+      <h2>What isn't here</h2>
+      <ul>
+        <li><b>Cities.</b> Anthropic's finest geography is ISO 3166-2 subdivisions: states, provinces and regions. No city-level data is published.</li>
+        <li><b>Claude Code and API usage by country.</b> API traffic, which includes Claude Code, is published only as a global total. The npm download trend and the context figures on the Insights tab are the best available proxies.</li>
+        <li><b>Unsupported countries.</b> Claude isn't available in China, Russia, Iran, North Korea, Syria or Cuba. They're hatched on the map, because their absence isn't low demand.</li>
+        <li><b>Small countries and regions</b> below Anthropic's privacy thresholds aren't published. A missing value isn't a zero.</li>
+      </ul>
+      <h2>Caveats</h2>
+      <ul>
+        <li>The August 2025, November 2025 and February 2026 periods are one-week samples, while later periods are calendar months. Treat small period-to-period moves as noise.</li>
+        <li>Coding share (Software Development + DevOps topics) exists only in releases using the June 2026 schema, because earlier topic taxonomies aren't comparable.</li>
+        <li>State/province intensity (AUI) is published only for US states. Elsewhere the map shows each region's share of its country's usage.</li>
+        <li>Some state/province codes don't match a map shape. Those regions appear in the side panel list, marked "no map shape".</li>
+        <li>Regions are groupings made for this site. For example, Mexico is in Latin America, and Turkey and the Caucasus are in Europe &amp; Central Asia.</li>
+      </ul>
+      <h2>Sources</h2>
+      <ul>
+        <li><a href="https://huggingface.co/datasets/Anthropic/EconomicIndex">Anthropic Economic Index dataset</a> and reports: <a href="https://www.anthropic.com/research/anthropic-economic-index-september-2025-report">Sep 2025</a>, <a href="https://www.anthropic.com/research/anthropic-economic-index-january-2026-report">Jan 2026</a>, <a href="https://www.anthropic.com/research/economic-index-march-2026-report">Mar 2026</a>, <a href="https://www.anthropic.com/research/economic-index-june-2026-report">Jun 2026</a></li>
+        <li>Working-age population and GDP (2024): World Bank / IMF, as packaged in Anthropic's September 2025 release</li>
+        <li>Borders: <a href="https://www.naturalearthdata.com">Natural Earth</a> (public domain), simplified</li>
+        <li>Downloads: <a href="https://github.com/npm/registry/blob/main/docs/download-counts.md">npm download counts API</a></li>
+        <li>Context figures: JetBrains, Anthropic newsroom, Similarweb (linked on the Insights tab)</li>
+      </ul>
+      <p class="note" id="about-files"></p>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap site-foot">
+  <p class="note">Independent analysis of public data. Not affiliated with Anthropic.</p>
+</footer>
+
+<div id="tip" role="tooltip" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

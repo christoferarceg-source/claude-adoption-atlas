@@ -1,0 +1,722 @@
+{
+ "AD": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "AE": {
+  "field": "iso_3166_2",
+  "matched": 5,
+  "total": 6
+ },
+ "AG": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "AL": {
+  "field": "iso_3166_2",
+  "matched": 4,
+  "total": 5
+ },
+ "AM": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "AO": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "AR": {
+  "field": "iso_3166_2",
+  "matched": 24,
+  "total": 25
+ },
+ "AT": {
+  "field": "iso_3166_2",
+  "matched": 9,
+  "total": 9
+ },
+ "AU": {
+  "field": "iso_3166_2",
+  "matched": 8,
+  "total": 9
+ },
+ "AZ": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "BA": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "BB": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "BD": {
+  "field": "iso_3166_2",
+  "matched": 7,
+  "total": 8
+ },
+ "BE": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 3
+ },
+ "BG": {
+  "field": "iso_3166_2",
+  "matched": 9,
+  "total": 10
+ },
+ "BH": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 4
+ },
+ "BI": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "BJ": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 4
+ },
+ "BN": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "BO": {
+  "field": "iso_3166_2",
+  "matched": 8,
+  "total": 9
+ },
+ "BR": {
+  "field": "iso_3166_2",
+  "matched": 27,
+  "total": 27
+ },
+ "BT": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "BW": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "BZ": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "CA": {
+  "field": "iso_3166_2",
+  "matched": 10,
+  "total": 11
+ },
+ "CG": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 2
+ },
+ "CH": {
+  "field": "iso_3166_2",
+  "matched": 19,
+  "total": 20
+ },
+ "CI": {
+  "field": "code_hasc",
+  "matched": 1,
+  "total": 3
+ },
+ "CL": {
+  "field": "iso_3166_2",
+  "matched": 15,
+  "total": 16
+ },
+ "CM": {
+  "field": "iso_3166_2",
+  "matched": 8,
+  "total": 9
+ },
+ "CO": {
+  "field": "iso_3166_2",
+  "matched": 22,
+  "total": 24
+ },
+ "CR": {
+  "field": "iso_3166_2",
+  "matched": 6,
+  "total": 7
+ },
+ "CV": {
+  "field": "region_cod",
+  "matched": 1,
+  "total": 2
+ },
+ "CY": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 4
+ },
+ "CZ": {
+  "field": "gn_a1_code",
+  "matched": 2,
+  "total": 14
+ },
+ "DE": {
+  "field": "iso_3166_2",
+  "matched": 16,
+  "total": 16
+ },
+ "DJ": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 1
+ },
+ "DK": {
+  "field": "iso_3166_2",
+  "matched": 5,
+  "total": 5
+ },
+ "DO": {
+  "field": "gn_a1_code",
+  "matched": 3,
+  "total": 8
+ },
+ "DZ": {
+  "field": "iso_3166_2",
+  "matched": 12,
+  "total": 13
+ },
+ "EC": {
+  "field": "iso_3166_2",
+  "matched": 17,
+  "total": 18
+ },
+ "EE": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "EG": {
+  "field": "iso_3166_2",
+  "matched": 23,
+  "total": 24
+ },
+ "ES": {
+  "field": "region_cod",
+  "matched": 13,
+  "total": 18
+ },
+ "FI": {
+  "field": "iso_3166_2",
+  "matched": 12,
+  "total": 13
+ },
+ "FJ": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "FR": {
+  "field": "region_cod",
+  "matched": 11,
+  "total": 20
+ },
+ "GA": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "GB": {
+  "field": "geonunit",
+  "matched": 4,
+  "total": 4
+ },
+ "GE": {
+  "field": "iso_3166_2",
+  "matched": 7,
+  "total": 8
+ },
+ "GH": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "GM": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "GN": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "GR": {
+  "field": "iso_3166_2",
+  "matched": 8,
+  "total": 10
+ },
+ "GT": {
+  "field": "gn_a1_code",
+  "matched": 2,
+  "total": 3
+ },
+ "GY": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "HN": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "HR": {
+  "field": "iso_3166_2",
+  "matched": 7,
+  "total": 8
+ },
+ "HT": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "HU": {
+  "field": "iso_3166_2",
+  "matched": 11,
+  "total": 12
+ },
+ "ID": {
+  "field": "code_hasc",
+  "matched": 1,
+  "total": 7
+ },
+ "IL": {
+  "field": "iso_3166_2",
+  "matched": 6,
+  "total": 7
+ },
+ "IN": {
+  "field": "iso_3166_2",
+  "matched": 27,
+  "total": 32
+ },
+ "IQ": {
+  "field": "iso_3166_2",
+  "matched": 10,
+  "total": 13
+ },
+ "IS": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "IT": {
+  "field": "region_cod",
+  "matched": 19,
+  "total": 20
+ },
+ "JM": {
+  "field": "iso_3166_2",
+  "matched": 4,
+  "total": 5
+ },
+ "JO": {
+  "field": "iso_3166_2",
+  "matched": 4,
+  "total": 5
+ },
+ "JP": {
+  "field": "iso_3166_2",
+  "matched": 47,
+  "total": 47
+ },
+ "KG": {
+  "field": "iso_3166_2",
+  "matched": 4,
+  "total": 5
+ },
+ "KH": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "KM": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 1
+ },
+ "KR": {
+  "field": "iso_3166_2",
+  "matched": 17,
+  "total": 17
+ },
+ "KW": {
+  "field": "iso_3166_2",
+  "matched": 5,
+  "total": 6
+ },
+ "KZ": {
+  "field": "gn_a1_code",
+  "matched": 3,
+  "total": 19
+ },
+ "LB": {
+  "field": "iso_3166_2",
+  "matched": 5,
+  "total": 6
+ },
+ "LC": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "LI": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "LK": {
+  "field": "region_cod",
+  "matched": 8,
+  "total": 9
+ },
+ "LR": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 1
+ },
+ "LS": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "LT": {
+  "field": "iso_3166_2",
+  "matched": 4,
+  "total": 5
+ },
+ "LU": {
+  "field": "code_hasc",
+  "matched": 1,
+  "total": 3
+ },
+ "LV": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "MA": {
+  "field": "iso_3166_2",
+  "matched": 8,
+  "total": 9
+ },
+ "MD": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 4
+ },
+ "ME": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "MG": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "MN": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "MT": {
+  "field": "iso_3166_2",
+  "matched": 5,
+  "total": 6
+ },
+ "MU": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 4
+ },
+ "MV": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 3
+ },
+ "MX": {
+  "field": "iso_3166_2",
+  "matched": 31,
+  "total": 32
+ },
+ "MY": {
+  "field": "iso_3166_2",
+  "matched": 15,
+  "total": 16
+ },
+ "MZ": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 4
+ },
+ "NA": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "NE": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "NG": {
+  "field": "iso_3166_2",
+  "matched": 13,
+  "total": 14
+ },
+ "NL": {
+  "field": "iso_3166_2",
+  "matched": 12,
+  "total": 14
+ },
+ "NO": {
+  "field": "iso_3166_2",
+  "matched": 4,
+  "total": 11
+ },
+ "NZ": {
+  "field": "iso_3166_2",
+  "matched": 13,
+  "total": 14
+ },
+ "OM": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "PA": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 5
+ },
+ "PE": {
+  "field": "iso_3166_2",
+  "matched": 22,
+  "total": 24
+ },
+ "PG": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "PH": {
+  "field": "region_cod",
+  "matched": 16,
+  "total": 17
+ },
+ "PK": {
+  "field": "iso_3166_2",
+  "matched": 6,
+  "total": 7
+ },
+ "PL": {
+  "field": "pl_numeric",
+  "matched": 16,
+  "total": 16
+ },
+ "PT": {
+  "field": "iso_3166_2",
+  "matched": 17,
+  "total": 18
+ },
+ "PY": {
+  "field": "iso_3166_2",
+  "matched": 4,
+  "total": 5
+ },
+ "QA": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "RO": {
+  "field": "iso_3166_2",
+  "matched": 33,
+  "total": 34
+ },
+ "RS": {
+  "field": "iso_3166_2",
+  "matched": 4,
+  "total": 6
+ },
+ "RW": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "SA": {
+  "field": "iso_3166_2",
+  "matched": 8,
+  "total": 9
+ },
+ "SC": {
+  "field": "gn_a1_code",
+  "matched": 1,
+  "total": 2
+ },
+ "SE": {
+  "field": "iso_3166_2",
+  "matched": 21,
+  "total": 22
+ },
+ "SG": {
+  "field": "iso_3166_2",
+  "matched": 5,
+  "total": 6
+ },
+ "SI": {
+  "field": "iso_3166_2",
+  "matched": 7,
+  "total": 8
+ },
+ "SK": {
+  "field": "iso_3166_2",
+  "matched": 8,
+  "total": 8
+ },
+ "SL": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "SM": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "SN": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 4
+ },
+ "SR": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "SV": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 4
+ },
+ "SZ": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 2
+ },
+ "TD": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 2
+ },
+ "TG": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "TH": {
+  "field": "iso_3166_2",
+  "matched": 31,
+  "total": 33
+ },
+ "TJ": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "TL": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 1
+ },
+ "TN": {
+  "field": "iso_3166_2",
+  "matched": 9,
+  "total": 11
+ },
+ "TR": {
+  "field": "iso_3166_2",
+  "matched": 47,
+  "total": 48
+ },
+ "TT": {
+  "field": "iso_3166_2",
+  "matched": 5,
+  "total": 6
+ },
+ "TW": {
+  "field": "iso_3166_2",
+  "matched": 13,
+  "total": 15
+ },
+ "TZ": {
+  "field": "iso_3166_2",
+  "matched": 4,
+  "total": 5
+ },
+ "UA": {
+  "field": "iso_3166_2",
+  "matched": 21,
+  "total": 22
+ },
+ "US": {
+  "field": "iso_3166_2",
+  "matched": 51,
+  "total": 55
+ },
+ "UY": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "UZ": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 4
+ },
+ "VN": {
+  "field": "iso_3166_2",
+  "matched": 38,
+  "total": 39
+ },
+ "ZA": {
+  "field": "iso_3166_2",
+  "matched": 6,
+  "total": 9
+ },
+ "ZM": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ },
+ "ZW": {
+  "field": "iso_3166_2",
+  "matched": 2,
+  "total": 3
+ }
+}

@@ -8,6 +8,7 @@ An interactive map of where Claude and Claude Code are adopted, by region, count
 
 - **Map.** A world choropleth you can drill into: World → region → country → state/province. Colour by intensity (AUI), share of usage, change over time, use-case mix, coding share or automation. Every view is a shareable URL.
 - **Insights.** Findings rewritten from the latest data on every refresh, plus charts of regional trends, the biggest movers, income vs intensity, the use-case curve and daily Claude Code installs.
+- **Estimated users and adoption.** Ranges of monthly users and adoption (% of working-age people) per country and region. They're estimated by splitting third-party global user totals (`pipeline/reference/global_users.json`) by share of conversations. They're not account counts.
 - **About the data.** Methodology, caveats and sources.
 
 ## How it stays fresh

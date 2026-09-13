@@ -1,0 +1,11 @@
+[
+  {
+    "from": "2026-04-01",
+    "low": 56000000,
+    "high": 245000000,
+    "low_source": "~56M Claude mobile-app monthly users, Feb 2026 (reported by Reuters, via DemandSage). App only, so a floor",
+    "low_url": "https://www.demandsage.com/claude-ai-statistics/",
+    "high_source": "~245M web + app monthly users, Sensor Tower State of AI 2026",
+    "high_url": "https://sensortower.com/blog/state-of-ai-2026"
+  }
+]

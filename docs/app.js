@@ -5,6 +5,9 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+const approx = v => d3.format(".2~s")(v).replace("G", "B");
+const smallPct = v => (v < 1 ? v.toFixed(2) : v < 10 ? v.toFixed(1) : v.toFixed(0)) + "%";
+
 const f = {
   pct: v => v == null ? "—" : (Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2)) + "%",
   pct1: v => v == null ? "—" : v.toFixed(1) + "%",
@@ -12,12 +15,16 @@ const f = {
   mult: v => v == null ? "—" : v.toFixed(2) + "×",
   compact: v => v == null ? "—" : d3.format(".3~s")(v).replace("G", "B"),
   money: v => v == null ? "—" : "$" + d3.format(",")(Math.round(v / 1000)) + "k",
+  users: v => v == null ? "—" : `${approx(v * usersRatio())}–${approx(v)}`,
+  adopt: v => v == null ? "—" : `${smallPct(v * usersRatio())}–${smallPct(v)}`,
 };
 const list = arr => arr.length < 2 ? arr.join("") : arr.slice(0, -1).join(", ") + " and " + arr[arr.length - 1];
 
 const METRICS = {
   aui: { label: "Intensity (AUI)", fmt: f.idx, kind: "threshold", domain: [0.25, 0.5, 1, 2, 3, 5] },
   share: { label: "Share of global usage", fmt: f.pct, kind: "threshold", domain: [0.1, 0.25, 0.5, 1, 2, 5] },
+  users: { label: "Estimated monthly users", fmt: f.users, legendFmt: approx, kind: "threshold", domain: [250e3, 1e6, 2.5e6, 5e6, 10e6, 25e6], estimate: true },
+  adoption: { label: "Estimated adoption (% of working-age people)", fmt: f.adopt, legendFmt: smallPct, kind: "threshold", domain: [1, 2.5, 5, 10, 15, 25], estimate: true },
   change: { label: "Change in share since first period", fmt: f.mult, kind: "diverging", domain: [0.5, 0.75, 0.9, 1.1, 1.33, 2] },
   work: { label: "Work use", fmt: f.pct1, kind: "quantile" },
   personal: { label: "Personal use", fmt: f.pct1, kind: "quantile" },
@@ -25,7 +32,7 @@ const METRICS = {
   coding: { label: "Coding (software + DevOps)", fmt: f.pct1, kind: "quantile" },
   automation: { label: "Automation-style use", fmt: f.pct1, kind: "quantile" },
 };
-const SUB_LABELS = { share: "Share of the country's usage", aui: "Intensity (AUI)", change: "Change in share of the country's usage" };
+const SUB_LABELS = { share: "Share of the country's usage", aui: "Intensity (AUI)", change: "Change in share of the country's usage", users: "Estimated monthly users" };
 
 let DATA, SIGNALS, CONTEXT, WORLD, SOURCES, GEO_INDEX = {};
 const featuresByIso = new Map();
@@ -129,6 +136,16 @@ function buildControls() {
     }
   });
   $("#zoom-out").addEventListener("click", zoomOut);
+  const openFromAdoption = row => {
+    const go = row.dataset.go, type = go.slice(0, go.indexOf(":")), key = go.slice(go.indexOf(":") + 1);
+    Object.assign(state, { tab: "map", metric: "users" });
+    applyTab();
+    if (type === "region") navigate({ region: key, country: null, sub: null });
+    else navigate({ country: key, region: DATA.countries[key].region, sub: null });
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+  };
+  $("#adoption").addEventListener("click", e => { const row = e.target.closest("[data-go]"); if (row) openFromAdoption(row); });
+  $("#adoption").addEventListener("keydown", e => { const row = e.target.closest("[data-go]"); if (row && e.key === "Enter") openFromAdoption(row); });
   document.querySelectorAll("[data-tab]").forEach(btn => btn.addEventListener("click", () => {
     state.tab = btn.dataset.tab;
     writeHash(true);
@@ -172,9 +189,29 @@ function applyTab() {
 /* ---------- values ---------- */
 const firstPid = () => DATA.periods[0].id;
 
+// Global monthly-user estimates (lower/upper) that apply from a given period onward.
+function userTotals(pid = state.period) {
+  return (DATA?.user_totals || []).filter(t => t.from <= pid).sort((a, b) => (a.from < b.from ? 1 : -1))[0] || null;
+}
+
+function usersRatio() {
+  const t = userTotals(state.period) || (DATA?.user_totals || [])[0];
+  return t ? t.low / t.high : 1;
+}
+
+function estimateNote() {
+  return ` · upper estimate (lower ≈ ${Math.round(1 / usersRatio())}× smaller)`;
+}
+
 function cVal(iso, metric = state.metric, pid = state.period) {
   const r = DATA.countries[iso]?.p[pid];
   if (!r) return null;
+  if (metric === "users" || metric === "adoption") {
+    const t = userTotals(pid), pop = DATA.countries[iso].pop;
+    if (!t) return null;
+    const users = r.share / 100 * t.high;
+    return metric === "users" ? users : pop ? users / pop * 100 : null;
+  }
   if (metric === "change") {
     const r0 = DATA.countries[iso].p[firstPid()];
     return pid !== firstPid() && r0 && r0.share >= 0.05 ? r.share / r0.share : null;
@@ -186,6 +223,12 @@ function rVal(region, metric = state.metric, pid = state.period) {
   const rp = DATA.regions[region]?.p;
   if (!rp?.[pid]) return null;
   if (metric === "share" || metric === "aui") return rp[pid][metric];
+  if (metric === "users" || metric === "adoption") {
+    const t = userTotals(pid);
+    if (!t) return null;
+    const users = rp[pid].share / 100 * t.high;
+    return metric === "users" ? users : rp[pid].pop ? users / rp[pid].pop * 100 : null;
+  }
   if (metric === "change") return pid !== firstPid() && rp[firstPid()] ? rp[pid].share / rp[firstPid()].share : null;
   return weightedAvg(Object.values(DATA.countries).filter(c => c.region === region), metric, pid);
 }
@@ -201,6 +244,7 @@ function weightedAvg(countries, metric, pid) {
 
 function subMetricFor(iso2) {
   const m = state.metric;
+  if (m === "users" || m === "adoption") return "users";
   if (["work", "personal", "coursework", "automation"].includes(m)) return m;
   if (m === "aui" && iso2 === "US") return "aui";
   if (m === "change") return "change";
@@ -214,6 +258,10 @@ function firstSubPid(sd) {
 function sVal(sd, code, metric, pid = state.period) {
   const r = sd?.p[pid]?.[code];
   if (!r) return null;
+  if (metric === "users") {
+    const countryUsers = cVal(state.country, "users", pid);
+    return countryUsers == null ? null : countryUsers * r.share / 100;
+  }
   if (metric === "change") {
     const base = firstSubPid(sd), r0 = sd.p[base]?.[code];
     return base !== pid && r0 && r0.share >= 1 ? r.share / r0.share : null;
@@ -288,8 +336,9 @@ function countryTip(iso, fallbackName) {
   if (DATA.unsupported.includes(iso)) return `<b>${esc(fallbackName)}</b><br>Claude isn't available here`;
   if (!c?.p[state.period]) return `<b>${esc(c?.name || fallbackName)}</b><br>No published data for ${esc(periodLabel())}`;
   const r = c.p[state.period], M = METRICS[state.metric];
-  const extra = ["share", "aui"].includes(state.metric) ? "" : `<br>${M.label}: ${M.fmt(cVal(iso))}`;
-  return `<b>${esc(c.name)}</b><br>${f.pct(r.share)} of global usage · AUI ${f.idx(r.aui)}${extra}`;
+  const extra = ["share", "aui", "users"].includes(state.metric) ? "" : `<br>${M.label}: ${M.fmt(cVal(iso))}`;
+  const users = cVal(iso, "users");
+  return `<b>${esc(c.name)}</b><br>${f.pct(r.share)} of global usage · AUI ${f.idx(r.aui)}${users != null ? `<br>Est. monthly users: ${f.users(users)}` : ""}${extra}`;
 }
 
 async function render() {
@@ -312,8 +361,8 @@ async function render() {
     .classed("active", d => d.properties.iso3 === state.country)
     .attr("data-tip", d => countryTip(d.properties.iso3, d.properties.name));
 
-  if (values.length) renderLegend(scale, M.kind, M.fmt, `${M.label} · by country`);
-  else $("#legend").innerHTML = `<span class="note">${esc(M.label)} isn't published for ${esc(periodLabel())}. Pick a later period.</span>`;
+  if (values.length) renderLegend(scale, M.kind, M.legendFmt || M.fmt, `${M.label} · by country${M.estimate ? estimateNote() : ""}`);
+  else $("#legend").innerHTML = `<span class="note">${esc(M.label)} ${M.estimate ? "is only estimated for periods close to when global user totals were measured" : `isn't published for ${esc(periodLabel())}`}. Pick a later period.</span>`;
 
   let subInfo = null;
   if (state.country) {
@@ -356,7 +405,7 @@ function drawSubregions(info) {
   const values = codes.map(code => sVal(info.data, code, metric)).filter(v => v != null);
   const kind = metric === "change" ? "diverging" : "quantile";
   const scale = scaleFor(kind, METRICS.change.domain, values);
-  const fmt = metric === "aui" ? f.idx : metric === "change" ? f.mult : f.pct1;
+  const fmt = metric === "aui" ? f.idx : metric === "change" ? f.mult : metric === "users" ? f.users : f.pct1;
 
   gSubs.selectAll("path").data(info.features).join("path")
     .attr("d", path)
@@ -380,7 +429,7 @@ function drawSubregions(info) {
   const title = metric === "change"
     ? `${SUB_LABELS.change} since ${periodLabel(firstSubPid(info.data))}`
     : `${METRICS[metric] && metric !== "share" && metric !== "aui" ? METRICS[metric].label : SUB_LABELS[metric]} · by state/province`;
-  if (values.length) renderLegend(scale, kind, fmt, title);
+  if (values.length) renderLegend(scale, kind, metric === "users" ? approx : fmt, title + (metric === "users" ? estimateNote() : ""));
 }
 
 function mapNote(info) {
@@ -442,8 +491,14 @@ function renderCrumbs(info) {
 }
 
 /* ---------- side panel ---------- */
-function kpis(items) {
-  return `<dl class="kpis">${items.map(([label, value, sub]) => `<div><dt>${esc(label)}</dt><dd>${value}</dd>${sub ? `<p>${sub}</p>` : ""}</div>`).join("")}</dl>`;
+function kpis(items, cls = "") {
+  return `<dl class="kpis ${cls}">${items.map(([label, value, sub]) => `<div><dt>${esc(label)}</dt><dd>${value}</dd>${sub ? `<p>${sub}</p>` : ""}</div>`).join("")}</dl>`;
+}
+
+function estimateBlock(users, adopt) {
+  if (users == null) return "";
+  return kpis([["Est. monthly users", f.users(users)], ["Est. adoption", f.adopt(adopt), "of working-age people"]], "k2") +
+    `<p class="note">An estimated range, not an account count. <a href="#about">How it's calculated</a></p>`;
 }
 
 function sparkline(values, fmt, title) {
@@ -516,6 +571,7 @@ function panelWorld() {
       ["Largest", esc(topShare[0]), `${esc(topShare[1].name)} · ${f.pct(topShare[1].p[pid].share)}`],
       ["Most intensive", esc(topAui[0]), `${esc(topAui[1].name)} · AUI ${f.idx(topAui[1].p[pid].aui)}`],
     ])}
+    ${estimateBlock(userTotals()?.high, userTotals() ? userTotals().high / d3.sum(rows, ([, c]) => c.pop || 0) * 100 : null)}
     <h3>Regions by ${esc(M.label.toLowerCase())}</h3>${rankList(regions, M.fmt)}
     <h3>Top countries by ${esc(M.label.toLowerCase())}</h3>${rankList(top, M.fmt)}${minNote}`;
 }
@@ -533,6 +589,7 @@ function panelRegion() {
       ["AUI", f.idx(r.aui), r.aui >= 1 ? "above population share" : "below population share"],
       ["Since " + periodLabel(firstPid()), f.mult(change), change == null ? "" : change >= 1 ? "share gained" : "share lost"],
     ]) : `<p class="note">No data for this region in ${esc(periodLabel())}.</p>`}
+    ${estimateBlock(rVal(region, "users"), rVal(region, "adoption"))}
     ${sparkline(series("share"), f.pct1, "Share of global usage")}
     ${sparkline(series("aui"), f.idx, "Intensity (AUI)")}
     <h3>Countries by ${esc(M.label.toLowerCase())}</h3>${rankList(countries, M.fmt)}
@@ -562,7 +619,7 @@ function panelCountry(info) {
   let subs = "";
   if (info?.data?.p[pid]) {
     const metric = subMetricFor(info.iso2);
-    const fmt = metric === "aui" ? f.idx : metric === "change" ? f.mult : f.pct1;
+    const fmt = metric === "aui" ? f.idx : metric === "change" ? f.mult : metric === "users" ? f.users : f.pct1;
     const items = Object.keys(info.data.p[pid])
       .map(code => ({ pick: `sub:${code}`, code: code.split("-")[1], label: subName(info, code), value: sVal(info.data, code, metric),
         flag: info.names[code] ? "" : "no map shape" }))
@@ -579,6 +636,7 @@ function panelCountry(info) {
       ["AUI", f.idx(r.aui), rankAui ? `#${rankAui} of ${big.length} larger markets` : "sample too small to rank"],
       ["Since " + periodLabel(firstPid()), f.mult(change), change == null ? "no baseline" : change >= 1 ? "share gained" : "share lost"],
     ]) +
+    estimateBlock(cVal(iso, "users"), cVal(iso, "adoption")) +
     sparkline(series("aui"), f.idx, "Intensity (AUI) over time") +
     sparkline(series("share"), f.pct, "Share of global usage over time") +
     `<div><h3 style="margin-bottom:8px">How it's used</h3>${mixBar(r)}</div>` +
@@ -604,6 +662,7 @@ function panelSub(info) {
     sparkline(series("share"), f.pct1, `Share of ${c.name}'s usage over time`) +
     (r.aui != null ? sparkline(series("aui"), f.idx, "Intensity (AUI) over time") : "") +
     `<div><h3 style="margin-bottom:8px">How it's used</h3>${mixBar(r)}</div>` +
+    (sVal(info.data, code, "users") != null ? `<div class="facts-inline"><span>Est. monthly users: <b>${f.users(sVal(info.data, code, "users"))}</b> (estimated range)</span></div>` : "") +
     `<p class="note">This is the finest geography Anthropic publishes. There's no city-level data.</p>` +
     `<button type="button" class="ghost" data-pick="country:${state.country}">← Back to ${esc(c.name)}</button>`;
 }
@@ -729,12 +788,61 @@ function buildInsights() {
   }
   $("#insight-cards").innerHTML = cards.map(c => `<article class="ins"><span class="ins-v">${esc(c.value)}</span><h3>${esc(c.title)}</h3><p>${esc(c.body)}</p></article>`).join("");
 
+  buildAdoption(last);
   chartRegions();
   chartMovers(movers, L(first), L(last));
   chartIncome(last);
   chartTiers(last);
   chartNpm(npm);
   $("#context-facts").innerHTML = (CONTEXT || []).map(x => `<div class="fact"><span class="v">${esc(x.value)}</span><p>${esc(x.label)}</p><span class="src"><a href="${esc(x.url)}">${esc(x.source)}</a> · ${esc(x.as_of)}</span></div>`).join("");
+}
+
+function rangeBar(v, max) {
+  const hi = max ? v / max * 100 : 0;
+  return `<span class="rbar" aria-hidden="true"><i class="hi" style="width:${hi.toFixed(1)}%"></i><i class="lo" style="width:${(hi * usersRatio()).toFixed(1)}%"></i></span>`;
+}
+
+function buildAdoption(pid) {
+  const t = userTotals(pid), host = $("#adoption");
+  host.hidden = !t;
+  if (!t) return;
+  const cs = Object.entries(DATA.countries).filter(([, c]) => c.p[pid] && c.pop)
+    .map(([iso, c]) => ({ iso, c, share: c.p[pid].share, aui: c.p[pid].aui, users: cVal(iso, "users", pid), adopt: cVal(iso, "adoption", pid) }));
+  const regions = Object.keys(DATA.regions).filter(n => n !== "Other" && DATA.regions[n].p[pid]?.pop)
+    .map(n => ({ n, share: DATA.regions[n].p[pid].share, users: rVal(n, "users", pid), adopt: rVal(n, "adoption", pid) }))
+    .sort((a, b) => b.users - a.users);
+  const worldAdopt = t.high / d3.sum(cs, d => d.c.pop) * 100;
+  const byUsers = cs.slice().sort((a, b) => b.users - a.users);
+  const byAdopt = cs.filter(d => d.share >= 0.3).sort((a, b) => b.adopt - a.adopt);
+  const regAdopt = regions.slice().sort((a, b) => b.adopt - a.adopt);
+  const lowest = regAdopt[regAdopt.length - 1];
+  const headroom = cs.filter(d => d.c.pop >= 50e6 && d.adopt < worldAdopt)
+    .map(d => ({ ...d, gap: (worldAdopt - d.adopt) / 100 * d.c.pop })).sort((a, b) => b.gap - a.gap).slice(0, 3);
+
+  $("#adopt-basis").textContent = `${periodLabel(pid)} · based on ${approx(t.low)}–${approx(t.high)} monthly users worldwide`;
+  const cards = [
+    { value: f.users(regions[0].users), title: `${regions[0].n} has the most users`,
+      body: `An estimated ${f.users(regions[0].users)} people in ${regions[0].n} use Claude each month, followed by ${list(regions.slice(1, 3).map(r => `${r.n} (${f.users(r.users)})`))}.` },
+    { value: f.adopt(regAdopt[0].adopt), title: `Adoption is deepest in ${regAdopt[0].n}`,
+      body: `About ${f.adopt(regAdopt[0].adopt)} of working-age people in ${regAdopt[0].n} use Claude monthly, compared with ${f.adopt(worldAdopt)} across all countries with data. ${lowest.n} is lowest at ${f.adopt(lowest.adopt)}.` },
+    { value: f.users(byUsers[0].users), title: "Largest user bases",
+      body: `${list(byUsers.slice(0, 5).map(d => `${d.c.name} (${f.users(d.users)})`))}.` },
+    { value: f.adopt(byAdopt[0].adopt), title: `Highest adoption: ${list(byAdopt.slice(0, 3).map(d => d.c.name))}`,
+      body: `Among countries with at least 0.3% of usage, ${list(byAdopt.slice(0, 3).map(d => `${d.c.name} (${f.adopt(d.adopt)})`))} have the largest share of working-age people using Claude.` },
+  ];
+  if (headroom.length) {
+    cards.push({ value: `+${f.users(headroom[0].gap)}`, title: `Biggest headroom: ${list(headroom.map(d => d.c.name))}`,
+      body: `If ${headroom[0].c.name} reached the all-country average adoption of ${f.adopt(worldAdopt)}, it would gain about ${f.users(headroom[0].gap)} monthly users${headroom[1] ? `, and ${headroom[1].c.name} about ${f.users(headroom[1].gap)}` : ""}. These are large working-age populations where adoption is still below average.` });
+  }
+  $("#adopt-cards").innerHTML = cards.map(c => `<article class="ins"><span class="ins-v">${esc(c.value)}</span><h3>${esc(c.title)}</h3><p>${esc(c.body)}</p></article>`).join("");
+
+  const maxR = d3.max(regions, r => r.users);
+  $("#adopt-regions").innerHTML = `<thead><tr><th>Region</th><th>Est. monthly users</th><th></th><th class="r">Est. adoption</th><th class="r">Share</th></tr></thead><tbody>` +
+    regions.map(r => `<tr data-go="region:${esc(r.n)}" tabindex="0"><td>${esc(r.n)}</td><td>${rangeBar(r.users, maxR)}</td><td class="r">${f.users(r.users)}</td><td class="r">${f.adopt(r.adopt)}</td><td class="r">${f.pct1(r.share)}</td></tr>`).join("") + "</tbody>";
+  const top = byUsers.slice(0, 20), maxC = top[0].users;
+  $("#adopt-countries").innerHTML = `<thead><tr><th>Country</th><th>Est. monthly users</th><th></th><th class="r">Est. adoption</th><th class="r">AUI</th></tr></thead><tbody>` +
+    top.map(d => `<tr data-go="country:${d.iso}" tabindex="0"><td><span class="code">${d.iso}</span> ${esc(d.c.name)}</td><td>${rangeBar(d.users, maxC)}</td><td class="r">${f.users(d.users)}</td><td class="r">${f.adopt(d.adopt)}</td><td class="r">${f.idx(d.aui)}</td></tr>`).join("") + "</tbody>";
+  $("#adopt-sources").innerHTML = `Global totals: lower ${esc(approx(t.low))} (<a href="${esc(t.low_url)}">${esc(t.low_source)}</a>), upper ${esc(approx(t.high))} (<a href="${esc(t.high_url)}">${esc(t.high_source)}</a>). Working-age population is for 2024. Click a row to open it on the map.`;
 }
 
 function chartRegions() {

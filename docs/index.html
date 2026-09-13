@@ -54,6 +54,26 @@
     </div>
     <div class="ins-grid" id="insight-cards"></div>
 
+    <section class="adoption" id="adoption" aria-labelledby="adoption-h" hidden>
+      <div class="sec-head">
+        <span class="label">Estimated · <span id="adopt-basis"></span></span>
+        <h2 id="adoption-h">Adoption by country and region</h2>
+        <p class="dek">Anthropic doesn't publish user counts by country. These ranges split third-party estimates of Claude's global monthly users by each country's share of conversations. Use them for orders of magnitude, not exact counts.</p>
+      </div>
+      <div class="ins-grid" id="adopt-cards"></div>
+      <div class="charts">
+        <figure>
+          <figcaption><span class="t">Estimated users and adoption by region</span><span class="s">Dark bar = lower estimate, light bar = upper estimate. Adoption = estimated users ÷ working-age (15–64) population.</span></figcaption>
+          <div class="tbl-wrap"><table class="data" id="adopt-regions"></table></div>
+        </figure>
+        <figure>
+          <figcaption><span class="t">Top 20 countries by estimated users</span><span class="s">Click a row to open that country on the map.</span></figcaption>
+          <div class="tbl-wrap"><table class="data" id="adopt-countries"></table></div>
+        </figure>
+      </div>
+      <p class="note" id="adopt-sources"></p>
+    </section>
+
     <div class="charts">
       <figure class="wide">
         <figcaption><span class="t">Share of global Claude.ai usage by region</span><span class="s">All regions share one scale, so heights are comparable. Hover a point for its AUI.</span></figcaption>
@@ -98,6 +118,14 @@
       <ul>
         <li><b>Share of global usage</b> is a country's percentage of all geolocated conversations in the period.</li>
         <li><b>Intensity (AUI, the Anthropic AI Usage Index)</b> is that share divided by the country's share of the world's working-age (15–64) population. 1.0 means usage proportional to population, and 3.0 means three times more. It's recomputed from raw shares so every period is comparable. For recent periods it matches Anthropic's published index to ±0.01.</li>
+      </ul>
+      <h2>Estimated users and adoption</h2>
+      <p>Anthropic doesn't publish user or account counts by country, so the atlas shows a range. It takes third-party estimates of Claude's global monthly users and splits them by each country's share of Claude.ai conversations. Adoption is those estimated users divided by working-age population.</p>
+      <ul>
+        <li>The lower bound counts mobile-app users only, while the upper bound covers web and app. They differ by about 4×, so every figure is shown as a lower–upper range. The sources are listed under the adoption section on the Insights tab.</li>
+        <li>Conversations aren't people. Heavy-use countries such as the US, Australia and South Korea are likely overstated. Countries with lighter use per person, such as India, Indonesia and Nigeria, are likely understated.</li>
+        <li>Business customers (300,000+ according to Anthropic) and Claude Code users aren't split by country, because no public data supports it.</li>
+        <li>Estimates only appear for periods close to when the global totals were measured.</li>
       </ul>
       <h2>What isn't here</h2>
       <ul>

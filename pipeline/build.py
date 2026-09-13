@@ -81,7 +81,9 @@ def load_reference():
             if len(parts) > 8:
                 continent[parts[1]] = parts[8]
                 names.setdefault(parts[1], parts[4])
-    return {"pop": pop, "gdp": gdp, "names": names, "a2to3": a2to3, "continent": continent}
+    with open(os.path.join(REF, "global_users.json"), encoding="utf-8") as fh:
+        user_totals = json.load(fh)
+    return {"pop": pop, "gdp": gdp, "names": names, "a2to3": a2to3, "continent": continent, "user_totals": user_totals}
 
 
 def region_of(iso3, continent):
@@ -291,13 +293,14 @@ def assemble(releases, ref):
                 "iso2": a3to2.get(iso),
                 "region": region_of(iso, ref["continent"]),
                 "gdp_pc": round(gdp[iso] / pop[iso]) if iso in gdp else None,
+                "pop": round(pop[iso]),
                 "p": {},
             })
             entry["p"][pid] = rec
             region_acc[entry["region"]][0] += share
             region_acc[entry["region"]][1] += pop[iso]
         for name, (share, rpop) in region_acc.items():
-            regions[name]["p"][pid] = {"share": round(share, 2), "aui": round((share / 100) / (rpop / pop_total), 3)}
+            regions[name]["p"][pid] = {"share": round(share, 2), "aui": round((share / 100) / (rpop / pop_total), 3), "pop": round(rpop)}
 
         for code, m in merged[pid]["subregions"].items():
             rec = {k: round(v, 2) for k, v in m.items() if k in ("share", "aui", "work", "personal", "coursework", "automation")}
@@ -325,6 +328,7 @@ def assemble(releases, ref):
         "regions": dict(sorted(regions.items())),
         "summary": summary,
         "unsupported": UNSUPPORTED,
+        "user_totals": ref["user_totals"],
         "countries_with_subregions": sorted(subregions),
         "unsupported_regions": {iso: region_of(iso, ref["continent"]) for iso in UNSUPPORTED},
     }

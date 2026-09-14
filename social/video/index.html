@@ -368,7 +368,7 @@ async function main() {
     const endFade = 1 - ease(ramp(t, OUTRO_START, 0.5));
     header.attr("opacity", ease(ramp(t, 0, 0.6)) * endFade);
     footer.attr("opacity", ease(ramp(t, 0.8, 0.6)) * endFade);
-    panel.attr("opacity", 1);
+    panel.attr("opacity", endFade);
     outro.attr("opacity", ease(ramp(t, OUTRO_START + 0.3, 0.7)));
   }
 

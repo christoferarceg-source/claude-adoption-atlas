@@ -76,7 +76,8 @@ async function init() {
   renderFreshness();
   applyTab();
   render();
-  const onNav = () => { readHash(); syncControls(); applyTab(); render(); };
+  track();
+  const onNav = () => { readHash(); syncControls(); applyTab(); render(); track(); };
   window.addEventListener("popstate", onNav);
   window.addEventListener("hashchange", onNav);
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
@@ -107,6 +108,31 @@ function writeHash(push) {
   if (!state.labels) q.set("l", "0");
   const hash = `#${state.tab}?${q}`;
   if (hash !== location.hash) history[push ? "pushState" : "replaceState"](null, "", hash);
+  track();
+}
+
+// Visitor analytics (GoatCounter, no cookies). The view lives in the URL hash, which
+// GoatCounter ignores, so each place opened counts as its own path (e.g. /map/Europe/FRA)
+// and metric or month switches count as events.
+let tracked = null;
+function track() {
+  const place = state.tab === "map" ? [state.region, state.country, state.sub].filter(Boolean) : [];
+  const now = { path: "/" + [state.tab, ...place].join("/"), metric: state.metric, period: state.period };
+  const first = !tracked;
+  if (first || now.path !== tracked.path) {
+    const name = state.tab !== "map" ? null : state.country ? DATA.countries[state.country].name : state.region;
+    // Only the first hit carries the external referrer; later ones are in-site navigation.
+    gc({ path: now.path, title: name ? `${name} · Claude Adoption Atlas` : document.title, ...(first ? {} : { referrer: "" }) });
+  }
+  if (!first && now.metric !== tracked.metric) gc({ path: `metric: ${METRICS[now.metric].label}`, event: true });
+  if (!first && now.period !== tracked.period) gc({ path: `period: ${periodLabel(now.period)}`, event: true });
+  tracked = now;
+}
+
+function gc(vars) {
+  if (window.goatcounter?.count) return window.goatcounter.count(vars);
+  document.querySelector("script[data-goatcounter]")
+    ?.addEventListener("load", () => window.goatcounter?.count?.(vars), { once: true });
 }
 
 function periodLabel(pid = state.period) {

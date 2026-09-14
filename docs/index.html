@@ -30,6 +30,7 @@
       <label for="metric"><span class="label">Colour by</span><select id="metric"></select></label>
       <label for="period"><span class="label">Period</span><select id="period"></select></label>
       <label for="region"><span class="label">Region</span><select id="region"></select></label>
+      <label for="labels" class="check"><input id="labels" type="checkbox" checked><span>Show user numbers on map</span></label>
       <label for="search" class="grow"><span class="label">Find a country</span><input id="search" list="country-list" placeholder="e.g. Brazil or BRA" autocomplete="off"><datalist id="country-list"></datalist></label>
     </div>
     <div class="map-layout">
@@ -40,6 +41,7 @@
         </div>
         <div class="map-box"><svg id="map" role="img" aria-label="World map of Claude adoption. Click a country to drill down."></svg></div>
         <div class="legend" id="legend"></div>
+        <p class="note" id="labels-note"></p>
         <p class="note" id="map-note">Click a country to see its states or provinces. Drag to pan, scroll to zoom.</p>
       </figure>
       <aside class="panel" id="panel" aria-live="polite"><p class="note">Loading…</p></aside>

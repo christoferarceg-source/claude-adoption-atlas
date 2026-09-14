@@ -63,6 +63,8 @@ main > section { padding-block: 20px 0; }
 .controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: end; margin-bottom: 14px; }
 .controls label { display: grid; gap: 4px; }
 .controls .grow { flex: 1 1 220px; }
+.controls .check { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: .9rem; color: var(--ink-2); padding-bottom: 8px; cursor: pointer; }
+.controls .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 select, input { font-family: var(--display); font-size: .92rem; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 4px; padding: 7px 10px; min-width: 0; max-width: 100%; }
 button.ghost { font-family: var(--display); font-size: .85rem; color: var(--ink-2); background: none; border: 1px solid var(--axis); border-radius: 4px; padding: 5px 10px; cursor: pointer; }
 button.ghost:hover { background: var(--wash); color: var(--ink); }
@@ -91,6 +93,7 @@ figcaption .s { font-size: .86rem; color: var(--muted); line-height: 1.45; }
 .sub { cursor: pointer; }
 .sub.nomatch { cursor: default; }
 .sub.active { stroke: var(--ink); stroke-width: 2px; }
+.map-label { font-family: var(--display); font-weight: 650; fill: var(--ink); stroke: var(--surface); paint-order: stroke; stroke-linejoin: round; pointer-events: none; font-variant-numeric: tabular-nums; }
 .hatch-bg { fill: var(--hatch-bg); }
 .hatch-line { stroke: var(--hatch-line); stroke-width: 1.6; }
 

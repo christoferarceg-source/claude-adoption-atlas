@@ -66,7 +66,7 @@
  },
  "BE": {
   "field": "iso_3166_2",
-  "matched": 1,
+  "matched": 3,
   "total": 3
  },
  "BG": {
@@ -151,7 +151,7 @@
  },
  "CO": {
   "field": "iso_3166_2",
-  "matched": 22,
+  "matched": 23,
   "total": 24
  },
  "CR": {
@@ -170,8 +170,8 @@
   "total": 4
  },
  "CZ": {
-  "field": "gn_a1_code",
-  "matched": 2,
+  "field": "iso_3166_2",
+  "matched": 13,
   "total": 14
  },
  "DE": {
@@ -216,7 +216,7 @@
  },
  "ES": {
   "field": "region_cod",
-  "matched": 13,
+  "matched": 17,
   "total": 18
  },
  "FI": {
@@ -231,7 +231,7 @@
  },
  "FR": {
   "field": "region_cod",
-  "matched": 11,
+  "matched": 13,
   "total": 20
  },
  "GA": {
@@ -300,9 +300,14 @@
   "total": 12
  },
  "ID": {
-  "field": "code_hasc",
-  "matched": 1,
+  "field": "iso_3166_2",
+  "matched": 7,
   "total": 7
+ },
+ "IE": {
+  "field": "iso_3166_2",
+  "matched": 3,
+  "total": 4
  },
  "IL": {
   "field": "iso_3166_2",
@@ -311,7 +316,7 @@
  },
  "IN": {
   "field": "iso_3166_2",
-  "matched": 27,
+  "matched": 31,
   "total": 32
  },
  "IQ": {
@@ -343,6 +348,11 @@
   "field": "iso_3166_2",
   "matched": 47,
   "total": 47
+ },
+ "KE": {
+  "field": "iso_3166_2",
+  "matched": 1,
+  "total": 15
  },
  "KG": {
   "field": "iso_3166_2",
@@ -461,7 +471,7 @@
  },
  "MX": {
   "field": "iso_3166_2",
-  "matched": 31,
+  "matched": 32,
   "total": 32
  },
  "MY": {
@@ -496,7 +506,7 @@
  },
  "NO": {
   "field": "iso_3166_2",
-  "matched": 4,
+  "matched": 11,
   "total": 11
  },
  "NZ": {
@@ -516,7 +526,7 @@
  },
  "PE": {
   "field": "iso_3166_2",
-  "matched": 22,
+  "matched": 23,
   "total": 24
  },
  "PG": {
@@ -535,7 +545,7 @@
   "total": 7
  },
  "PL": {
-  "field": "pl_numeric",
+  "field": "iso_3166_2",
   "matched": 16,
   "total": 16
  },
@@ -671,7 +681,7 @@
  },
  "TW": {
   "field": "iso_3166_2",
-  "matched": 13,
+  "matched": 14,
   "total": 15
  },
  "TZ": {
@@ -706,7 +716,7 @@
  },
  "ZA": {
   "field": "iso_3166_2",
-  "matched": 6,
+  "matched": 8,
   "total": 9
  },
  "ZM": {

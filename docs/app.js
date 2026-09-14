@@ -37,7 +37,7 @@ const SUB_LABELS = { share: "Share of the country's usage", aui: "Intensity (AUI
 let DATA, SIGNALS, CONTEXT, WORLD, SOURCES, GEO_INDEX = {};
 const featuresByIso = new Map();
 const subCache = new Map();
-const state = { tab: "map", metric: "aui", period: null, region: null, country: null, sub: null };
+const state = { tab: "map", metric: "aui", period: null, region: null, country: null, sub: null, labels: true };
 let insightsBuilt = false;
 
 /* ---------- boot ---------- */
@@ -87,6 +87,7 @@ function readHash() {
   state.region = DATA.regions[q.get("r")] ? q.get("r") : null;
   state.country = DATA.countries[q.get("c")] ? q.get("c") : null;
   state.sub = state.country ? q.get("s") : null;
+  state.labels = q.get("l") !== "0";
   if (state.country) state.region = DATA.countries[state.country].region;
 }
 
@@ -95,6 +96,7 @@ function writeHash(push) {
   if (state.region) q.set("r", state.region);
   if (state.country) q.set("c", state.country);
   if (state.sub) q.set("s", state.sub);
+  if (!state.labels) q.set("l", "0");
   const hash = `#${state.tab}?${q}`;
   if (hash !== location.hash) history[push ? "pushState" : "replaceState"](null, "", hash);
 }
@@ -136,6 +138,7 @@ function buildControls() {
     }
   });
   $("#zoom-out").addEventListener("click", zoomOut);
+  $("#labels").addEventListener("change", e => { state.labels = e.target.checked; writeHash(false); drawLabels(currentSubInfo); });
   const openFromAdoption = row => {
     const go = row.dataset.go, type = go.slice(0, go.indexOf(":")), key = go.slice(go.indexOf(":") + 1);
     Object.assign(state, { tab: "map", metric: "users" });
@@ -165,6 +168,7 @@ function syncControls() {
   $("#metric").value = state.metric;
   $("#period").value = state.period;
   $("#region").value = state.region || "";
+  $("#labels").checked = state.labels;
 }
 
 function navigate(next) {
@@ -291,7 +295,8 @@ function renderLegend(scale, kind, fmt, title) {
 
 /* ---------- map ---------- */
 const MW = 960, MH = 500;
-let svg, gRoot, gCountries, gSubs, zoom, path, lastZoomKey = null, renderToken = 0;
+let svg, gRoot, gCountries, gSubs, gLabels, zoom, path, lastZoomKey = null, renderToken = 0;
+let currentK = 1, currentSubInfo = null, labelFrame = 0;
 
 function fixWinding(feature) {
   // Natural Earth rings can be wound the "wrong" way for d3's spherical geometry.
@@ -316,6 +321,7 @@ function buildMap() {
   gRoot.append("path").datum({ type: "Sphere" }).attr("class", "sphere").attr("d", path).on("click", zoomOut);
   gCountries = gRoot.append("g");
   gSubs = gRoot.append("g");
+  gLabels = gRoot.append("g").attr("class", "labels");
 
   const features = topojson.feature(WORLD, WORLD.objects.countries).features.map(fixWinding);
   features.forEach(ft => featuresByIso.set(ft.properties.iso3, ft));
@@ -327,7 +333,11 @@ function buildMap() {
       if (DATA.countries[iso]) navigate({ country: iso, region: DATA.countries[iso].region, sub: null });
     });
 
-  zoom = d3.zoom().scaleExtent([1, 80]).on("zoom", event => gRoot.attr("transform", event.transform));
+  zoom = d3.zoom().scaleExtent([1, 80]).on("zoom", event => {
+    gRoot.attr("transform", event.transform);
+    currentK = event.transform.k;
+    scheduleLabelLayout();
+  });
   svg.call(zoom).on("dblclick.zoom", null);
 }
 
@@ -370,6 +380,8 @@ async function render() {
     if (token !== renderToken) return;
   }
   drawSubregions(subInfo);
+  currentSubInfo = subInfo;
+  drawLabels(subInfo);
   zoomToState();
   renderCrumbs(subInfo);
   renderPanel(subInfo);
@@ -430,6 +442,69 @@ function drawSubregions(info) {
     ? `${SUB_LABELS.change} since ${periodLabel(firstSubPid(info.data))}`
     : `${METRICS[metric] && metric !== "share" && metric !== "aui" ? METRICS[metric].label : SUB_LABELS[metric]} · by state/province`;
   if (values.length) renderLegend(scale, kind, metric === "users" ? approx : fmt, title + (metric === "users" ? estimateNote() : ""));
+}
+
+/* ---------- user-number labels ---------- */
+function labelAnchor(feature) {
+  const polys = mainPolygons(feature);
+  if (!polys.length) return null;
+  const biggest = polys.reduce((a, b) => (path.area(b) > path.area(a) ? b : a));
+  const [x, y] = path.centroid(biggest);
+  const [[x0, y0], [x1, y1]] = path.bounds(biggest);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y, w: x1 - x0, h: y1 - y0 } : null;
+}
+
+function drawLabels(info) {
+  gLabels.selectAll("*").remove();
+  const note = $("#labels-note");
+  if (!state.labels) { note.textContent = ""; return; }
+  if (!userTotals()) {
+    const first = (DATA.user_totals || []).map(t => t.from).sort()[0];
+    const label = DATA.periods.find(p => p.id >= first)?.label;
+    note.textContent = label ? `User numbers are only estimated from ${label} onward. Pick a later period to see them.` : "";
+    return;
+  }
+  note.textContent = "Numbers on the map are estimated monthly users (lower–upper range). Zoom in to see smaller places.";
+  let items;
+  const drilled = state.country && info?.data && info.features.some(ft => ft.properties.code);
+  if (drilled) {
+    items = info.features.filter(ft => ft.properties.code).map(ft => ({ ft, v: sVal(info.data, ft.properties.code, "users"), force: false }));
+  } else {
+    items = [...featuresByIso.values()]
+      .filter(ft => DATA.countries[ft.properties.iso3] && (!state.country || ft.properties.iso3 === state.country))
+      .map(ft => ({ ft, v: cVal(ft.properties.iso3, "users"), force: Boolean(state.country) }));
+  }
+  items = items.filter(d => d.v != null).map(d => ({ ...d, a: labelAnchor(d.ft), text: f.users(d.v) }))
+    .filter(d => d.a).sort((a, b) => b.v - a.v);
+  // Inside a country, always label the three biggest places, even small capital districts like Mexico City.
+  if (drilled) items.forEach((d, i) => { d.force = i < 3; });
+  gLabels.selectAll("text").data(items).join("text")
+    .attr("class", "map-label").attr("x", d => d.a.x).attr("y", d => d.a.y)
+    .attr("text-anchor", "middle").attr("dominant-baseline", "central")
+    .text(d => d.text);
+  layoutLabels();
+}
+
+function scheduleLabelLayout() {
+  if (labelFrame) return;
+  labelFrame = requestAnimationFrame(() => { labelFrame = 0; layoutLabels(); });
+}
+
+// Show a label only where it fits inside its shape and doesn't collide with a larger place's label.
+function layoutLabels() {
+  const k = currentK, placed = [];
+  gLabels.selectAll("text.map-label").each(function (d) {
+    const wPx = d.text.length * 6.4, hPx = 13;
+    const w = wPx / k, h = hPx / k;
+    const box = { x0: d.a.x - w / 2, x1: d.a.x + w / 2, y0: d.a.y - h / 2, y1: d.a.y + h / 2 };
+    const fits = d.force || (d.a.w * k >= wPx * 0.85 && d.a.h * k >= hPx);
+    const clear = placed.every(p => box.x1 < p.x0 || box.x0 > p.x1 || box.y1 < p.y0 || box.y0 > p.y1);
+    const show = fits && clear;
+    if (show) placed.push(box);
+    this.setAttribute("font-size", (11 / k).toFixed(3));
+    this.setAttribute("stroke-width", (3 / k).toFixed(3));
+    this.style.display = show ? "" : "none";
+  });
 }
 
 function mapNote(info) {

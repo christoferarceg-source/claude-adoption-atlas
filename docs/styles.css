@@ -145,6 +145,7 @@ figcaption .s { font-size: .86rem; color: var(--muted); line-height: 1.45; }
 .rank .bar i { position: absolute; inset-block: 0; left: 0; background: var(--s1); border-radius: 0 3px 3px 0; }
 .rank .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
 .kpis.k2 { grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 0; margin-top: -16px; }
+.kpis.k2.flat { margin-top: 0; border-top: 1px solid var(--ink); }
 .more { font-family: var(--display); font-size: .82rem; }
 
 /* insights */
@@ -215,6 +216,9 @@ table.data tr[data-go]:focus-visible { outline: 2px solid var(--accent); outline
 .rbar i { position: absolute; inset-block: 0; left: 0; border-radius: 0 3px 3px 0; }
 .rbar .hi { background: var(--q1); }
 .rbar .lo { background: var(--s1); }
+.rbar .s1 { background: var(--s1); }
+.rbar .s2 { background: var(--s2); }
+svg .code-bar { fill: var(--s2); }
 
 #tip { position: fixed; z-index: 20; pointer-events: none; max-width: 280px; background: var(--ink); color: var(--ground); font-family: var(--display); font-size: .8rem; line-height: 1.4; padding: 7px 10px; border-radius: 4px; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
 

@@ -76,6 +76,27 @@
       <p class="note" id="adopt-sources"></p>
     </section>
 
+    <section class="adoption" id="code-split" aria-labelledby="code-h" hidden>
+      <div class="sec-head">
+        <span class="label">Modelled · <span id="code-basis"></span></span>
+        <h2 id="code-h">Claude chat vs Claude Code</h2>
+        <p class="dek">Anthropic's country data covers Claude chat and Cowork only. Claude Code isn't published by country, so this section models it from where the world's developers are, and compares that with where chat use is.</p>
+      </div>
+      <div class="ins-grid" id="code-cards"></div>
+      <div class="charts">
+        <figure class="wide">
+          <figcaption><span class="t">Share of global use: Claude chat vs Claude Code</span><span class="s">Top 15 countries by modelled Claude Code share. Chat is measured; Claude Code is modelled. Hover for the lean.</span></figcaption>
+          <div class="chart-legend"><span><i style="background:var(--s1)"></i>Claude chat (measured)</span><span><i style="background:var(--s2)"></i>Claude Code (modelled)</span></div>
+          <div id="chart-code"></div>
+        </figure>
+        <figure class="wide">
+          <figcaption><span class="t">Chat vs Claude Code by region</span><span class="s">A lean above 1× means a region's share of Claude Code use is larger than its share of chat.</span></figcaption>
+          <div class="tbl-wrap"><table class="data" id="code-regions"></table></div>
+        </figure>
+      </div>
+      <p class="note" id="code-sources"></p>
+    </section>
+
     <div class="charts">
       <figure class="wide">
         <figcaption><span class="t">Share of global Claude.ai usage by region</span><span class="s">All regions share one scale, so heights are comparable. Hover a point for its AUI.</span></figcaption>
@@ -128,6 +149,13 @@
         <li>Conversations aren't people. Heavy-use countries such as the US, Australia and South Korea are likely overstated. Countries with lighter use per person, such as India, Indonesia and Nigeria, are likely understated.</li>
         <li>Business customers (300,000+ according to Anthropic) and Claude Code users aren't split by country, because no public data supports it.</li>
         <li>Estimates only appear for periods close to when the global totals were measured.</li>
+      </ul>
+      <h2>Claude chat vs Claude Code</h2>
+      <p>The Economic Index's country data covers Claude chat and Cowork. Claude Code usage is published only as a global total, so the atlas models its country split:</p>
+      <ul>
+        <li><b>Claude Code share</b> is each country's share of the world's developers (GitHub Innovation Graph, latest quarter). US developers are weighted up by 47/39, because JetBrains' 2026 survey found 47% of US developers use Claude Code at work against 39% worldwide. Countries where Claude isn't available are excluded.</li>
+        <li><b>Claude Code lean</b> is that modelled share divided by the country's measured share of chat. Above 1× means Claude Code is likely a bigger part of the country's Claude use than the world average.</li>
+        <li>It assumes developers adopt Claude Code at similar rates outside the US. GitHub counts only developers with GitHub accounts, which undercounts some markets.</li>
       </ul>
       <h2>What isn't here</h2>
       <ul>

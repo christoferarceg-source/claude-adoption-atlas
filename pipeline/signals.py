@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Fetch daily npm downloads for Claude Code packages (a global, near-real-time signal)."""
+import csv
+import io
 import json
 import os
 import statistics
@@ -9,6 +11,8 @@ from datetime import date, datetime, timedelta, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "docs", "data", "signals.json")
+DEV_OUT = os.path.join(ROOT, "docs", "data", "developers.json")
+DEVELOPERS_URL = "https://raw.githubusercontent.com/github/innovationgraph/main/data/developers.csv"
 PACKAGES = {
     "@anthropic-ai/claude-code": "Claude Code CLI",
     "@anthropic-ai/claude-agent-sdk": "Claude Agent SDK",
@@ -49,6 +53,21 @@ def series(pkg, end):
     return {"label": PACKAGES[pkg], "start": days[0]["day"], "downloads": cleaned}
 
 
+def developers():
+    """Latest quarter of GitHub Innovation Graph developer counts per economy (CC0).
+
+    Used to model where Claude Code use is likely to be, since Anthropic doesn't publish it by country.
+    """
+    req = urllib.request.Request(DEVELOPERS_URL, headers={"User-Agent": "claude-adoption-atlas"})
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        rows = list(csv.DictReader(io.TextIOWrapper(resp, encoding="utf-8")))
+    latest = max((int(r["year"]), int(r["quarter"])) for r in rows)
+    counts = {r["iso2_code"]: int(r["developers"]) for r in rows
+              if (int(r["year"]), int(r["quarter"])) == latest and len(r["iso2_code"]) == 2 and r["iso2_code"] != "EU"}
+    return {"quarter": f"{latest[0]}-Q{latest[1]}", "source": "GitHub Innovation Graph",
+            "url": "https://github.com/github/innovationgraph", "developers": counts}
+
+
 def main():
     end = datetime.now(timezone.utc).date() - timedelta(days=1)  # today's count is partial
     out = {"checked_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "npm": {}}
@@ -60,6 +79,14 @@ def main():
         raise SystemExit("npm returned no data for Claude Code; keeping the previous signals file.")
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh, separators=(",", ":"))
+    try:
+        devs = developers()
+    except (urllib.error.URLError, ValueError, KeyError) as err:
+        print(f"Developer counts unavailable ({err}); keeping the previous file.")
+    else:
+        with open(DEV_OUT, "w", encoding="utf-8") as fh:
+            json.dump(devs, fh, separators=(",", ":"), sort_keys=True)
+        print(f"developers: {devs['quarter']}, {len(devs['developers'])} economies")
     print({k: len(v["downloads"]) for k, v in out["npm"].items()})
 
 

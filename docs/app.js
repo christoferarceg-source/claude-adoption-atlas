@@ -25,6 +25,8 @@ const METRICS = {
   share: { label: "Share of global usage", fmt: f.pct, kind: "threshold", domain: [0.1, 0.25, 0.5, 1, 2, 5] },
   users: { label: "Estimated monthly users", fmt: f.users, legendFmt: approx, kind: "threshold", domain: [250e3, 1e6, 2.5e6, 5e6, 10e6, 25e6], estimate: true },
   adoption: { label: "Estimated adoption (% of working-age people)", fmt: f.adopt, legendFmt: smallPct, kind: "threshold", domain: [1, 2.5, 5, 10, 15, 25], estimate: true },
+  codeShare: { label: "Claude Code: est. share of global use", fmt: f.pct, kind: "threshold", domain: [0.25, 0.5, 1, 2, 5, 10], estimate: "code" },
+  codeLean: { label: "Claude Code lean (vs chat share)", fmt: f.mult, kind: "diverging", domain: [0.5, 0.75, 0.9, 1.1, 1.33, 2], estimate: "code" },
   change: { label: "Change in share since first period", fmt: f.mult, kind: "diverging", domain: [0.5, 0.75, 0.9, 1.1, 1.33, 2] },
   work: { label: "Work use", fmt: f.pct1, kind: "quantile" },
   personal: { label: "Personal use", fmt: f.pct1, kind: "quantile" },
@@ -34,7 +36,12 @@ const METRICS = {
 };
 const SUB_LABELS = { share: "Share of the country's usage", aui: "Intensity (AUI)", change: "Change in share of the country's usage", users: "Estimated monthly users" };
 
-let DATA, SIGNALS, CONTEXT, WORLD, SOURCES, GEO_INDEX = {};
+let DATA, SIGNALS, CONTEXT, WORLD, SOURCES, DEVS, GEO_INDEX = {};
+// Countries whose developers are excluded from the Claude Code model because Claude isn't offered there.
+const CODE_EXCLUDED = ["CN", "RU", "IR", "KP", "SY", "CU", "HK", "MO"];
+// JetBrains 2026: 47% of US developers use Claude Code at work vs 39% of all developers.
+const CODE_US_FACTOR = 47 / 39;
+let CODE_MODEL = null;
 const featuresByIso = new Map();
 const subCache = new Map();
 const state = { tab: "map", metric: "aui", period: null, region: null, country: null, sub: null, labels: true };
@@ -49,13 +56,14 @@ async function getJSON(url) {
 
 async function init() {
   try {
-    [DATA, WORLD, SIGNALS, CONTEXT, GEO_INDEX, SOURCES] = await Promise.all([
+    [DATA, WORLD, SIGNALS, CONTEXT, GEO_INDEX, SOURCES, DEVS] = await Promise.all([
       getJSON("data/aei.json"),
       getJSON("geo/world.json"),
       getJSON("data/signals.json").catch(() => null),
       getJSON("data/context.json").catch(() => []),
       getJSON("geo/admin1/index.json").catch(() => ({})),
       getJSON("data/sources.json").catch(() => null),
+      getJSON("data/developers.json").catch(() => null),
     ]);
   } catch (err) {
     $("#panel").innerHTML = `<p class="error">The atlas data didn't load (${esc(err.message)}). Reload the page to try again.</p>`;
@@ -141,7 +149,7 @@ function buildControls() {
   $("#labels").addEventListener("change", e => { state.labels = e.target.checked; writeHash(false); drawLabels(currentSubInfo); });
   const openFromAdoption = row => {
     const go = row.dataset.go, type = go.slice(0, go.indexOf(":")), key = go.slice(go.indexOf(":") + 1);
-    Object.assign(state, { tab: "map", metric: "users" });
+    Object.assign(state, { tab: "map", metric: row.closest("#code-split") ? "codeShare" : "users" });
     applyTab();
     if (type === "region") navigate({ region: key, country: null, sub: null });
     else navigate({ country: key, region: DATA.countries[key].region, sub: null });
@@ -149,6 +157,8 @@ function buildControls() {
   };
   $("#adoption").addEventListener("click", e => { const row = e.target.closest("[data-go]"); if (row) openFromAdoption(row); });
   $("#adoption").addEventListener("keydown", e => { const row = e.target.closest("[data-go]"); if (row && e.key === "Enter") openFromAdoption(row); });
+  $("#code-split").addEventListener("click", e => { const row = e.target.closest("[data-go]"); if (row) openFromAdoption(row); });
+  $("#code-split").addEventListener("keydown", e => { const row = e.target.closest("[data-go]"); if (row && e.key === "Enter") openFromAdoption(row); });
   document.querySelectorAll("[data-tab]").forEach(btn => btn.addEventListener("click", () => {
     state.tab = btn.dataset.tab;
     writeHash(true);
@@ -203,6 +213,25 @@ function usersRatio() {
   return t ? t.low / t.high : 1;
 }
 
+// Where Claude Code use is likely to be: each country's share of GitHub developers, US weighted up
+// for its higher reported adoption, excluding countries where Claude isn't available.
+function codeModel() {
+  if (CODE_MODEL || !DEVS?.developers) return CODE_MODEL;
+  const iso3By2 = new Map(Object.entries(DATA.countries).map(([iso3, c]) => [c.iso2, iso3]));
+  const byIso3 = {};
+  let total = 0;
+  Object.entries(DEVS.developers).forEach(([iso2, devs]) => {
+    if (CODE_EXCLUDED.includes(iso2)) return;
+    const weight = devs * (iso2 === "US" ? CODE_US_FACTOR : 1);
+    total += weight;
+    const iso3 = iso3By2.get(iso2);
+    if (iso3) byIso3[iso3] = { devs, weight };
+  });
+  Object.values(byIso3).forEach(v => { v.share = v.weight / total * 100; });
+  CODE_MODEL = { byIso3, quarter: DEVS.quarter };
+  return CODE_MODEL;
+}
+
 function estimateNote() {
   return ` · upper estimate (lower ≈ ${Math.round(1 / usersRatio())}× smaller)`;
 }
@@ -210,6 +239,11 @@ function estimateNote() {
 function cVal(iso, metric = state.metric, pid = state.period) {
   const r = DATA.countries[iso]?.p[pid];
   if (!r) return null;
+  if (metric === "codeShare" || metric === "codeLean") {
+    const m = codeModel()?.byIso3[iso];
+    if (!m) return null;
+    return metric === "codeShare" ? m.share : r.share >= 0.05 ? m.share / r.share : null;
+  }
   if (metric === "users" || metric === "adoption") {
     const t = userTotals(pid), pop = DATA.countries[iso].pop;
     if (!t) return null;
@@ -227,6 +261,12 @@ function rVal(region, metric = state.metric, pid = state.period) {
   const rp = DATA.regions[region]?.p;
   if (!rp?.[pid]) return null;
   if (metric === "share" || metric === "aui") return rp[pid][metric];
+  if (metric === "codeShare" || metric === "codeLean") {
+    const model = codeModel();
+    if (!model) return null;
+    const code = d3.sum(Object.entries(DATA.countries).filter(([, c]) => c.region === region), ([iso]) => model.byIso3[iso]?.share || 0);
+    return code ? (metric === "codeShare" ? code : code / rp[pid].share) : null;
+  }
   if (metric === "users" || metric === "adoption") {
     const t = userTotals(pid);
     if (!t) return null;
@@ -371,7 +411,9 @@ async function render() {
     .classed("active", d => d.properties.iso3 === state.country)
     .attr("data-tip", d => countryTip(d.properties.iso3, d.properties.name));
 
-  if (values.length) renderLegend(scale, M.kind, M.legendFmt || M.fmt, `${M.label} · by country${M.estimate ? estimateNote() : ""}`);
+  const suffix = M.estimate === "code" ? ` · modelled from GitHub developer counts (${codeModel()?.quarter ?? ""})` : M.estimate ? estimateNote() : "";
+  if (values.length) renderLegend(scale, M.kind, M.legendFmt || M.fmt, `${M.label} · by country${suffix}`);
+  else if (M.estimate === "code") $("#legend").innerHTML = `<span class="note">The Claude Code model needs GitHub developer counts, which didn't load. Reload the page to try again.</span>`;
   else $("#legend").innerHTML = `<span class="note">${esc(M.label)} ${M.estimate ? "is only estimated for periods close to when global user totals were measured" : `isn't published for ${esc(periodLabel())}`}. Pick a later period.</span>`;
 
   let subInfo = null;
@@ -576,6 +618,14 @@ function estimateBlock(users, adopt) {
     `<p class="note">An estimated range, not an account count. <a href="#about">How it's calculated</a></p>`;
 }
 
+function codeBlock(codeShare, lean, devs) {
+  if (codeShare == null) return "";
+  const leanText = lean == null ? "sample too small" : lean >= 1.1 ? "leans toward Claude Code" : lean <= 0.9 ? "leans toward chat" : "balanced";
+  return `<div><h3 style="margin-bottom:8px">Chat vs Claude Code</h3>` +
+    kpis([["Est. Claude Code share", f.pct(codeShare), "of global Claude Code use"], ["Claude Code lean", f.mult(lean), leanText]], "k2 flat") +
+    `<p class="note">${devs ? `${approx(devs)} developers on GitHub. ` : ""}Modelled from developer counts and survey adoption, not measured usage. <a href="#about">How it's calculated</a></p></div>`;
+}
+
 function sparkline(values, fmt, title) {
   const labels = DATA.periods.map(p => p.label);
   const pts = values.map((v, i) => [i, v]).filter(p => p[1] != null);
@@ -614,7 +664,7 @@ function rankList(items, fmt) {
 }
 
 function countryRows(filter) {
-  const minShare = ["aui", "change"].includes(state.metric) ? 0.3 : 0.05;
+  const minShare = ["aui", "change", "codeLean"].includes(state.metric) ? 0.3 : 0.05;
   return Object.entries(DATA.countries)
     .filter(([iso, c]) => filter(iso, c) && (c.p[state.period]?.share ?? 0) >= minShare)
     .map(([iso, c]) => ({ pick: `country:${iso}`, code: iso, label: c.name, value: cVal(iso) }))
@@ -639,7 +689,7 @@ function panelWorld() {
   const regions = Object.keys(DATA.regions).filter(r => r !== "Other")
     .map(r => ({ pick: `region:${r}`, label: r, value: rVal(r) })).filter(d => d.value != null).sort((a, b) => b.value - a.value);
   const top = countryRows(() => true).slice(0, 15);
-  const minNote = ["aui", "change"].includes(state.metric) ? `<p class="note">Only countries with at least 0.3% of global usage are ranked, so tiny samples don't top the list.</p>` : "";
+  const minNote = ["aui", "change", "codeLean"].includes(state.metric) ? `<p class="note">Only countries with at least 0.3% of global usage are ranked, so tiny samples don't top the list.</p>` : "";
   return `<header class="p-head"><span class="label">World · ${esc(periodLabel())}</span><h2>Global picture</h2></header>
     ${kpis([
       ["Countries", rows.length, "with published data"],
@@ -667,6 +717,7 @@ function panelRegion() {
     ${estimateBlock(rVal(region, "users"), rVal(region, "adoption"))}
     ${sparkline(series("share"), f.pct1, "Share of global usage")}
     ${sparkline(series("aui"), f.idx, "Intensity (AUI)")}
+    ${codeBlock(rVal(region, "codeShare"), rVal(region, "codeLean"))}
     <h3>Countries by ${esc(M.label.toLowerCase())}</h3>${rankList(countries, M.fmt)}
     ${blocked.length ? `<p class="note">Claude isn't available in ${esc(list(blocked.map(iso => featuresByIso.get(iso)?.properties.name || iso)))}.</p>` : ""}`;
 }
@@ -716,6 +767,7 @@ function panelCountry(info) {
     sparkline(series("share"), f.pct, "Share of global usage over time") +
     `<div><h3 style="margin-bottom:8px">How it's used</h3>${mixBar(r)}</div>` +
     (facts.length ? `<div class="facts-inline">${facts.map(x => `<span>${x}</span>`).join("")}</div>` : "") +
+    codeBlock(cVal(iso, "codeShare"), cVal(iso, "codeLean"), codeModel()?.byIso3[iso]?.devs) +
     subs;
 }
 
@@ -864,6 +916,7 @@ function buildInsights() {
   $("#insight-cards").innerHTML = cards.map(c => `<article class="ins"><span class="ins-v">${esc(c.value)}</span><h3>${esc(c.title)}</h3><p>${esc(c.body)}</p></article>`).join("");
 
   buildAdoption(last);
+  buildCodeSplit(last);
   chartRegions();
   chartMovers(movers, L(first), L(last));
   chartIncome(last);
@@ -894,7 +947,7 @@ function buildAdoption(pid) {
   const headroom = cs.filter(d => d.c.pop >= 50e6 && d.adopt < worldAdopt)
     .map(d => ({ ...d, gap: (worldAdopt - d.adopt) / 100 * d.c.pop })).sort((a, b) => b.gap - a.gap).slice(0, 3);
 
-  $("#adopt-basis").textContent = `${periodLabel(pid)} · based on ${approx(t.low)}–${approx(t.high)} monthly users worldwide`;
+  $("#adopt-basis").textContent = `${periodLabel(pid)} · based on ${f.compact(t.low)}–${f.compact(t.high)} monthly users worldwide`;
   const cards = [
     { value: f.users(regions[0].users), title: `${regions[0].n} has the most users`,
       body: `An estimated ${f.users(regions[0].users)} people in ${regions[0].n} use Claude each month, followed by ${list(regions.slice(1, 3).map(r => `${r.n} (${f.users(r.users)})`))}.` },
@@ -917,7 +970,65 @@ function buildAdoption(pid) {
   const top = byUsers.slice(0, 20), maxC = top[0].users;
   $("#adopt-countries").innerHTML = `<thead><tr><th>Country</th><th>Est. monthly users</th><th></th><th class="r">Est. adoption</th><th class="r">AUI</th></tr></thead><tbody>` +
     top.map(d => `<tr data-go="country:${d.iso}" tabindex="0"><td><span class="code">${d.iso}</span> ${esc(d.c.name)}</td><td>${rangeBar(d.users, maxC)}</td><td class="r">${f.users(d.users)}</td><td class="r">${f.adopt(d.adopt)}</td><td class="r">${f.idx(d.aui)}</td></tr>`).join("") + "</tbody>";
-  $("#adopt-sources").innerHTML = `Global totals: lower ${esc(approx(t.low))} (<a href="${esc(t.low_url)}">${esc(t.low_source)}</a>), upper ${esc(approx(t.high))} (<a href="${esc(t.high_url)}">${esc(t.high_source)}</a>). Working-age population is for 2024. Click a row to open it on the map.`;
+  $("#adopt-sources").innerHTML = `Global totals: lower ${esc(f.compact(t.low))} (<a href="${esc(t.low_url)}">${esc(t.low_source)}</a>), upper ${esc(f.compact(t.high))} (<a href="${esc(t.high_url)}">${esc(t.high_source)}</a>). Working-age population is for 2024. Click a row to open it on the map.`;
+}
+
+function roundedBar(x0, y, w, h) {
+  const r = Math.min(4, w);
+  return `M${x0},${y}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${h - 2 * r}a${r},${r} 0 0 1 -${r},${r}h-${w - r}z`;
+}
+
+function buildCodeSplit(pid) {
+  const model = codeModel(), host = $("#code-split");
+  host.hidden = !model;
+  if (!model) return;
+  const rows = Object.entries(DATA.countries).filter(([iso, c]) => c.p[pid] && model.byIso3[iso])
+    .map(([iso, c]) => ({ iso, c, chat: c.p[pid].share, code: model.byIso3[iso].share, lean: model.byIso3[iso].share / c.p[pid].share }));
+  const byCode = rows.slice().sort((a, b) => b.code - a.code);
+  const sizable = rows.filter(d => d.code >= 1 && d.chat >= 0.3);
+  const codeLeaning = sizable.slice().sort((a, b) => b.lean - a.lean).slice(0, 3);
+  const chatLeaning = sizable.slice().sort((a, b) => a.lean - b.lean).slice(0, 3);
+  const regions = Object.keys(DATA.regions).filter(n => n !== "Other" && DATA.regions[n].p[pid])
+    .map(n => ({ n, chat: DATA.regions[n].p[pid].share, code: rVal(n, "codeShare", pid), lean: rVal(n, "codeLean", pid) }))
+    .filter(r => r.code != null).sort((a, b) => b.code - a.code);
+
+  $("#code-basis").textContent = `Chat: ${periodLabel(pid)} · developers: GitHub ${model.quarter}`;
+  const cards = [
+    { value: f.pct1(byCode[0].code), title: `${byCode[0].c.name} leads Claude Code`,
+      body: `An estimated ${f.pct1(byCode[0].code)} of global Claude Code use is in ${byCode[0].c.name}, compared with ${f.pct1(byCode[0].chat)} of Claude chat. ${list(byCode.slice(1, 3).map(d => `${d.c.name} (${f.pct1(d.code)})`))} follow.` },
+    { value: f.mult(codeLeaning[0].lean), title: `Most Code-leaning: ${list(codeLeaning.map(d => d.c.name))}`,
+      body: `These markets have a larger share of the world's developers than of Claude chat, so Claude Code is likely a bigger part of their Claude use: ${list(codeLeaning.map(d => `${d.c.name} ${f.mult(d.lean)}`))}.` },
+    { value: f.mult(chatLeaning[0].lean), title: `Most chat-leaning: ${list(chatLeaning.map(d => d.c.name))}`,
+      body: `Chat outweighs the developer base in ${list(chatLeaning.map(d => `${d.c.name} (${f.mult(d.lean)})`))}, which points to broad everyday use beyond coding.` },
+    { value: "~18%", title: "Claude Code's slice of Anthropic revenue",
+      body: "Claude Code passed a $2.5B run-rate in February 2026, about 18% of Anthropic's $14B total then. Its sessions run on Opus 54% of the time, against 10% for chat and Cowork (June 2026 Economic Index)." },
+  ];
+  $("#code-cards").innerHTML = cards.map(c => `<article class="ins"><span class="ins-v">${esc(c.value)}</span><h3>${esc(c.title)}</h3><p>${esc(c.body)}</p></article>`).join("");
+
+  const top = byCode.slice(0, 15), host2 = $("#chart-code");
+  host2.innerHTML = "";
+  const W = 960, rowH = 34, m = { l: 170, r: 70, t: 6, b: 6 }, H = m.t + top.length * rowH + m.b;
+  const s = d3.select(host2).append("svg").attr("viewBox", `0 0 ${W} ${H}`).attr("role", "img")
+    .attr("aria-label", "Share of global Claude chat use (measured) and Claude Code use (modelled) by country");
+  const x = d3.scaleLinear([0, d3.max(top, d => Math.max(d.chat, d.code))], [m.l, W - m.r]);
+  s.append("line").attr("class", "axis").attr("x1", m.l).attr("x2", m.l).attr("y1", m.t).attr("y2", H - m.b);
+  top.forEach((d, i) => {
+    const y = m.t + i * rowH;
+    s.append("rect").attr("class", "hit").attr("x", 0).attr("y", y).attr("width", W).attr("height", rowH)
+      .attr("data-tip", `<b>${esc(d.c.name)}</b><br>Claude chat: ${f.pct(d.chat)} of global use<br>Claude Code (modelled): ${f.pct(d.code)}<br>Lean: ${f.mult(d.lean)}`);
+    s.append("text").attr("class", "lab").attr("x", m.l - 12).attr("y", y + rowH / 2 + 4).attr("text-anchor", "end").attr("pointer-events", "none").text(d.c.name);
+    [["chat", "up", 5], ["code", "code-bar", 17]].forEach(([k, cls, off]) => {
+      const w = Math.max(1, x(d[k]) - m.l);
+      s.append("path").attr("class", cls).attr("pointer-events", "none").attr("d", roundedBar(m.l, y + off, w, 10));
+      s.append("text").attr("class", "val").attr("x", m.l + w + 6).attr("y", y + off + 9).attr("pointer-events", "none").text(f.pct1(d[k]));
+    });
+  });
+
+  const maxR = d3.max(regions, r => Math.max(r.chat, r.code));
+  const bar = (v, tone) => `<span class="rbar"><i class="${tone}" style="width:${(v / maxR * 100).toFixed(1)}%"></i></span>`;
+  $("#code-regions").innerHTML = `<thead><tr><th>Region</th><th>Claude chat</th><th class="r">Share</th><th>Claude Code (modelled)</th><th class="r">Share</th><th class="r">Lean</th></tr></thead><tbody>` +
+    regions.map(r => `<tr data-go="region:${esc(r.n)}" tabindex="0"><td>${esc(r.n)}</td><td>${bar(r.chat, "s1")}</td><td class="r">${f.pct1(r.chat)}</td><td>${bar(r.code, "s2")}</td><td class="r">${f.pct1(r.code)}</td><td class="r">${f.mult(r.lean)}</td></tr>`).join("") + "</tbody>";
+  $("#code-sources").innerHTML = `Claude chat is measured (Anthropic Economic Index). Claude Code is modelled as each country's share of developers (<a href="${esc(DEVS.url)}">GitHub Innovation Graph</a>, ${esc(model.quarter)}), with US developers weighted ×${CODE_US_FACTOR.toFixed(2)} for higher reported adoption (47% vs 39%, <a href="https://blog.jetbrains.com/research/2026/08/ai-coding-agent-adoption-2026/">JetBrains 2026</a>), excluding countries where Claude isn't available. Click a region to open it on the map.`;
 }
 
 function chartRegions() {

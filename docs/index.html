@@ -14,7 +14,10 @@
 <body>
 <header class="site">
   <div class="wrap bar">
-    <a class="brand" href="#map">Claude Adoption Atlas</a>
+    <div class="brand-wrap">
+      <a class="brand" href="#map">Claude Adoption Atlas</a>
+      <a class="byline" href="https://christoferarceg-source.github.io/christoferarce-site/" rel="author">by Christofer Arce</a>
+    </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button type="button" role="tab" id="tab-map" aria-controls="panel-map" data-tab="map">Map</button>
       <button type="button" role="tab" id="tab-insights" aria-controls="panel-insights" data-tab="insights">Insights</button>
@@ -180,13 +183,15 @@
         <li>Downloads: <a href="https://github.com/npm/registry/blob/main/docs/download-counts.md">npm download counts API</a></li>
         <li>Context figures: JetBrains, Anthropic newsroom, Similarweb (linked on the Insights tab)</li>
       </ul>
+      <h2>Who built this</h2>
+      <p><a href="https://christoferarceg-source.github.io/christoferarce-site/" rel="author">Christofer Arce</a>, a product manager working on data products. The code, data pipeline and methodology are open on <a href="https://github.com/christoferarceg-source/claude-adoption-atlas">GitHub</a>.</p>
       <p class="note" id="about-files"></p>
     </div>
   </section>
 </main>
 
 <footer class="wrap site-foot">
-  <p class="note">Independent analysis of public data. Not affiliated with Anthropic.</p>
+  <p class="note">Built by <a href="https://christoferarceg-source.github.io/christoferarce-site/" rel="author">Christofer Arce</a> · <a href="https://github.com/christoferarceg-source/claude-adoption-atlas">Source on GitHub</a> · Independent analysis of public data. Not affiliated with Anthropic.</p>
 </footer>
 
 <div id="tip" role="tooltip" hidden></div>

@@ -90,7 +90,10 @@ h1 {{ font-stretch: 72%; font-weight: 750; font-size: 80px; line-height: .95; le
 .fact .v {{ font-stretch: 74%; font-weight: 750; font-size: 46px; line-height: 1; }}
 .fact .l {{ font-size: 18px; line-height: 1.3; color: #C3CFDA; margin-top: 6px; }}
 .foot {{ margin-top: auto; display: flex; justify-content: space-between; gap: 28px; align-items: end; font-size: 14.5px; color: #93A3B3; line-height: 1.4; }}
+.foot .credit {{ display: grid; gap: 4px; justify-items: end; text-align: right; }}
+.foot .by {{ font-size: 17px; color: #EEF3F7; font-weight: 600; }}
 .foot .url {{ font-family: "IBM Plex Mono", monospace; color: #79AEEE; font-size: 15px; white-space: nowrap; }}
+.foot .profile {{ font-family: "IBM Plex Mono", monospace; color: #93A3B3; font-size: 13px; white-space: nowrap; }}
 </style></head>
 <body>
   <div>
@@ -127,7 +130,11 @@ h1 {{ font-stretch: 72%; font-weight: 750; font-size: 80px; line-height: .95; le
 
   <div class="foot">
     <p>Chat: Anthropic Economic Index, {period['label']}. Claude Code by country: modelled from GitHub developer counts ({devs['quarter']}), US-adjusted with JetBrains 2026. Revenue: Anthropic Series G announcement. User totals: third-party estimates (Sensor Tower; Reuters). Independent analysis, not affiliated with Anthropic.</p>
-    <span class="url">christoferarceg-source.github.io/claude-adoption-atlas</span>
+    <div class="credit">
+      <span class="by">Built by Christofer Arce</span>
+      <span class="profile">christoferarceg-source.github.io/christoferarce-site</span>
+      <span class="url">christoferarceg-source.github.io/claude-adoption-atlas</span>
+    </div>
   </div>
 </body></html>
 """

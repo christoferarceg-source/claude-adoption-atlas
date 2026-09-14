@@ -2,6 +2,8 @@
 
 An interactive map of where Claude and Claude Code are adopted, by region, country and state/province, with an auto-generated insights tab.
 
+Built by **[Christofer Arce](https://christoferarceg-source.github.io/christoferarce-site/)**.
+
 **Live site:** https://christoferarceg-source.github.io/claude-adoption-atlas/
 
 ## What's inside
@@ -42,6 +44,28 @@ Map shapes in `docs/geo/` are built once from [Natural Earth](https://www.natura
 MAPSHAPER="npx mapshaper" python3 pipeline/geo/build_geo.py ne_50m_admin_0_countries.geojson ne_10m_admin_1_states_provinces.geojson
 ```
 
+## Render the LinkedIn video and infographic
+
+Both are generated from the same data and models as the site, so re-run them after a data refresh.
+
+Requirements: Google Chrome (set `CHROME=/path/to/chrome` if it isn't in the default macOS location), Node 18+ and Python 3.
+
+```bash
+# one-time: install the frame grabber (puppeteer-core) and encoder (ffmpeg-static)
+npm install --prefix social/video
+
+# infographic -> social/claude-adoption-linkedin.png (2160x2700)
+python3 social/build_infographic.py
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+  --window-size=1080,1350 --force-device-scale-factor=2 --virtual-time-budget=10000 \
+  --screenshot=social/claude-adoption-linkedin.png "file://$PWD/social/infographic.html"
+
+# video -> social/claude-adoption-video.mp4 (1080x1350, 30 fps) + -poster.png, about 3 minutes
+bash social/video/render.sh
+```
+
+`social/video/index.html` is a deterministic animation: `window.seek(t)` draws the frame at `t` seconds. `render.mjs` loads it in headless Chrome, captures every frame and pipes them into ffmpeg. To preview it in a browser, serve the repo root (`python3 -m http.server 8770`) and open `http://localhost:8770/social/video/index.html`.
+
 ## Credits
 
-Data: Anthropic Economic Index (CC-BY). Borders: Natural Earth. Independent analysis, not affiliated with Anthropic.
+Built by [Christofer Arce](https://christoferarceg-source.github.io/christoferarce-site/). Data: Anthropic Economic Index (CC-BY). Borders: Natural Earth. Developers: GitHub Innovation Graph. Independent analysis, not affiliated with Anthropic.

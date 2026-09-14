@@ -232,6 +232,7 @@ async function main() {
   const footer = svg.append("g");
   el(footer, "text", { x: 64, y: 1300, "font-size": 15, fill: C.muted }, `Chat: Anthropic Economic Index, ${period.label}. Claude Code by country and user counts are estimates. Independent analysis.`);
   el(footer, "text", { x: 64, y: 1326, class: "mono", "font-size": 15, fill: C.accent, "letter-spacing": "0" }, "christoferarceg-source.github.io/claude-adoption-atlas");
+  el(footer, "text", { x: 1016, y: 1326, "font-size": 16, "font-weight": 600, fill: C.ink2, "text-anchor": "end" }, "Built by Christofer Arce");
 
   // outro
   const outro = svg.append("g");
@@ -249,6 +250,10 @@ async function main() {
    "GitHub Innovation Graph; JetBrains Developer Ecosystem Survey 2026; Sensor Tower; Reuters.",
    "User counts and Claude Code by country are estimates. Independent analysis, not affiliated with Anthropic."]
     .forEach((line, i) => el(outro, "text", { x: 64, y: 1212 + i * 28, "font-size": 18, fill: C.muted }, line));
+  el(outro, "line", { x1: 64, x2: 1016, y1: 960, y2: 960, stroke: C.rule });
+  el(outro, "text", { x: 64, y: 1004, class: "mono", "font-size": 16, fill: C.muted }, "BUILT BY");
+  el(outro, "text", { x: 64, y: 1056, "font-size": 46, "font-weight": 750, "font-stretch": "74%", fill: C.ink }, "Christofer Arce");
+  el(outro, "text", { x: 64, y: 1098, class: "mono", "font-size": 22, fill: C.accent, "letter-spacing": "0" }, "christoferarceg-source.github.io/christoferarce-site");
 
   // ---------- timeline ----------
   const INTRO = 3.2, SEG = 2.7, N = regions.length, REG_END = INTRO + N * SEG, SUMMARY = 3.4, CODE = 8.6, OUTRO = 5;

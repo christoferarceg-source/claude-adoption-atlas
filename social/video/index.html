@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How the world uses Claude</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  html, body { margin: 0; width: 1080px; height: 1350px; overflow: hidden; background: #0B1320; }
+  svg { display: block; }
+  text { font-family: "Archivo", "Arial Narrow", sans-serif; }
+  .mono { font-family: "IBM Plex Mono", monospace; letter-spacing: .08em; }
+  .country { stroke: #0B1320; stroke-width: .6px; vector-effect: non-scaling-stroke; }
+  .outline { fill: none; stroke: #FFFFFF; stroke-width: 2.2px; vector-effect: non-scaling-stroke; }
+</style>
+</head>
+<body>
+<svg id="stage" width="1080" height="1350" viewBox="0 0 1080 1350"></svg>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script>
+"use strict";
+// A deterministic animation: window.seek(t) draws the frame at t seconds, so render.mjs can capture it frame by frame.
+const W = 1080, H = 1350, MAP_W = 1080, MAP_CX = 540, MAP_CY = 462;
+const C = {
+  ground: "#0B1320", panel: "#111C2C", rule: "#22324A", ink: "#EEF3F7", ink2: "#C3CFDA", muted: "#93A3B3",
+  chat: "#3987e5", code: "#d95926", accent: "#79AEEE", land: "#1A2638", track: "#2A3A52",
+};
+const CHAT_RAMP = ["#1c3f66", "#1c5cab", "#2a78d6", "#5598e7", "#86b6ef", "#cde2fb"];
+const CODE_RAMP = ["#4a2618", "#7a3517", "#a8441c", "#d95926", "#ec835a", "#f5b393"];
+const CODE_EXCLUDED = ["CN", "RU", "IR", "KP", "SY", "CU", "HK", "MO"];
+
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const ease = d3.easeCubicInOut;
+const ramp = (t, start, dur) => clamp((t - start) / dur);
+const pct = v => `${v.toFixed(1)}%`;
+const approx = v => d3.format(".2~s")(v).replace("G", "B");
+
+function el(parent, tag, attrs = {}, text) {
+  const node = parent.append(tag);
+  Object.entries(attrs).forEach(([k, v]) => node.attr(k, v));
+  if (text != null) node.text(text);
+  return node;
+}
+
+function fixWinding(feature) {
+  if (feature.geometry && d3.geoArea(feature) > 2 * Math.PI) {
+    const g = feature.geometry;
+    if (g.type === "Polygon") g.coordinates.forEach(r => r.reverse());
+    if (g.type === "MultiPolygon") g.coordinates.forEach(p => p.forEach(r => r.reverse()));
+  }
+  return feature;
+}
+
+async function main() {
+  const load = u => fetch(u).then(r => r.json());
+  const [aei, devs, world, geoIndex] = await Promise.all([
+    load("../../docs/data/aei.json"), load("../../docs/data/developers.json"),
+    load("../../docs/geo/world.json"), load("../../docs/geo/admin1/index.json"),
+  ]);
+  await Promise.all(["750 64px Archivo", "600 22px Archivo", "400 18px Archivo", "400 16px 'IBM Plex Mono'"].map(f => document.fonts.load(f)));
+
+  const period = aei.periods[aei.periods.length - 1], pid = period.id;
+  const totals = aei.user_totals[0];
+  const mappedRegions = d3.sum(Object.values(geoIndex), v => v.matched);
+  const users = share => `${approx(share / 100 * totals.low)}–${approx(share / 100 * totals.high)}`;
+
+  // Claude Code model (same as the site): share of GitHub developers, US weighted 47/39.
+  const iso3By2 = new Map(Object.entries(aei.countries).map(([iso3, c]) => [c.iso2, iso3]));
+  const codeShare = {};
+  let devTotal = 0;
+  Object.entries(devs.developers).forEach(([iso2, n]) => {
+    if (CODE_EXCLUDED.includes(iso2)) return;
+    const w = n * (iso2 === "US" ? 47 / 39 : 1);
+    devTotal += w;
+    if (iso3By2.has(iso2)) codeShare[iso3By2.get(iso2)] = w;
+  });
+  Object.keys(codeShare).forEach(k => { codeShare[k] = codeShare[k] / devTotal * 100; });
+
+  const regions = Object.entries(aei.regions).filter(([n, r]) => n !== "Other" && r.p[pid])
+    .map(([name, r]) => ({ name, share: r.p[pid].share }))
+    .sort((a, b) => b.share - a.share);
+  regions.forEach(r => {
+    const members = Object.entries(aei.countries).filter(([, c]) => c.region === r.name && c.p[pid])
+      .sort((a, b) => b[1].p[pid].share - a[1].p[pid].share);
+    r.members = members;
+    r.leader = { iso: members[0][0], name: members[0][1].name, share: members[0][1].p[pid].share };
+    r.leader.ofRegion = r.leader.share / r.share * 100;
+  });
+  const northAmerica = regions.find(r => r.name === "North America");
+
+  // ---------- scene ----------
+  const svg = d3.select("#stage");
+  const defs = svg.append("defs");
+  el(defs.append("clipPath").attr("id", "map-clip"), "rect", { x: 0, y: 150, width: W, height: 630 });
+  el(svg, "rect", { x: 0, y: 0, width: W, height: H, fill: C.ground });
+
+  const projection = d3.geoNaturalEarth1().fitExtent([[24, 180], [1056, 760]], { type: "Sphere" });
+  const path = d3.geoPath(projection);
+  const mapClip = svg.append("g").attr("clip-path", "url(#map-clip)");
+  const gMap = mapClip.append("g");
+  const features = topojson.feature(world, world.objects.countries).features.map(fixWinding)
+    .filter(ft => ft.properties.iso3 !== "ATA");
+  const byIso = new Map(features.map(ft => [ft.properties.iso3, ft]));
+  const countryPaths = gMap.selectAll("path.country").data(features).join("path").attr("class", "country").attr("d", path);
+  const outline = el(gMap, "path", { class: "outline", opacity: 0 });
+  const pinLayer = svg.append("g");
+  const pinRing = el(pinLayer, "circle", { r: 13, fill: "none", stroke: C.ink, "stroke-width": 2 });
+  const pinDot = el(pinLayer, "circle", { r: 6, fill: C.ink });
+  const pinTag = pinLayer.append("g");
+  const pinTagBg = el(pinTag, "rect", { rx: 5, fill: C.ink, height: 34 });
+  const pinTagText = el(pinTag, "text", { x: 12, y: 23, "font-size": 18, "font-weight": 650, fill: C.ground });
+
+  function mainPolys(feature) {
+    const g = feature?.geometry;
+    if (!g) return [];
+    const polys = (g.type === "Polygon" ? [g.coordinates] : g.coordinates).map(c => ({ type: "Polygon", coordinates: c }));
+    const areas = polys.map(p => path.area(p)), max = d3.max(areas);
+    return polys.filter((p, i) => areas[i] >= max * 0.08);
+  }
+  const WORLD_VIEW = { x: MAP_CX, y: MAP_CY, k: 1 };
+  regions.forEach(r => {
+    const polys = r.members.filter(([, c]) => c.p[pid].share >= 0.05).flatMap(([iso]) => mainPolys(byIso.get(iso)));
+    const [[x0, y0], [x1, y1]] = path.bounds({ type: "GeometryCollection", geometries: polys });
+    const k = Math.min(6, 0.82 / Math.max((x1 - x0) / MAP_W, (y1 - y0) / 560));
+    r.view = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, k };
+    const leaderPolys = mainPolys(byIso.get(r.leader.iso));
+    const biggest = leaderPolys.reduce((a, b) => (path.area(b) > path.area(a) ? b : a), leaderPolys[0]);
+    r.leader.anchor = path.centroid(biggest);
+    r.leader.d = path(byIso.get(r.leader.iso));
+  });
+  function interpView(a, b, t) {
+    const [x, y, w] = d3.interpolateZoom([a.x, a.y, MAP_W / a.k], [b.x, b.y, MAP_W / b.k])(t);
+    return { x, y, k: MAP_W / w };
+  }
+  const toScreen = (v, [px, py]) => [MAP_CX + (px - v.x) * v.k, MAP_CY + (py - v.y) * v.k];
+
+  const chatScale = d3.scaleThreshold([0.1, 0.25, 0.5, 1, 2], CHAT_RAMP);
+  const codeScale = d3.scaleThreshold([0.25, 0.5, 1, 2, 5], CODE_RAMP);
+  const colors = features.map(ft => {
+    const c = aei.countries[ft.properties.iso3], share = c?.p[pid]?.share, code = codeShare[ft.properties.iso3];
+    return { chat: share != null ? chatScale(share) : C.land, code: code != null ? codeScale(code) : C.land, region: c?.region };
+  });
+
+  // header
+  const header = svg.append("g");
+  el(header, "text", { x: 64, y: 74, class: "mono", "font-size": 18, fill: C.muted }, `CLAUDE ADOPTION ATLAS · ${period.label.toUpperCase()}`);
+  const title = el(header, "text", { x: 64, y: 134, "font-size": 60, "font-weight": 750, "font-stretch": "72%", fill: C.ink }, "How the world uses Claude");
+  const mapCaption = el(svg, "text", { x: 64, y: 186, class: "mono", "font-size": 15, fill: C.muted });
+
+  // panel frame
+  const panel = svg.append("g");
+  el(panel, "line", { x1: 64, x2: 1016, y1: 792, y2: 792, stroke: C.ink, "stroke-width": 2 });
+
+  // intro block
+  const intro = panel.append("g");
+  el(intro, "text", { x: 64, y: 870, "font-size": 46, "font-weight": 700, "font-stretch": "78%", fill: C.ink }, "9 regions. One leading country in each.");
+  el(intro, "text", { x: 64, y: 918, "font-size": 24, fill: C.ink2 }, "Share of Claude chat conversations, geolocated by Anthropic.");
+
+  // region block
+  const regionBlock = panel.append("g");
+  const rbLabel = el(regionBlock, "text", { x: 64, y: 832, class: "mono", "font-size": 16, fill: C.muted });
+  const rbName = el(regionBlock, "text", { x: 64, y: 884, "font-size": 50, "font-weight": 750, "font-stretch": "74%", fill: C.ink });
+  const rbShare = el(regionBlock, "text", { x: 60, y: 1002, "font-size": 116, "font-weight": 750, "font-stretch": "72%", fill: C.ink });
+  const rbCap1 = el(regionBlock, "text", { x: 360, y: 960, "font-size": 24, fill: C.ink2 }, "of global Claude chat");
+  const rbCap2 = el(regionBlock, "text", { x: 360, y: 992, "font-size": 21, fill: C.muted });
+  const leaderBlock = regionBlock.append("g");
+  el(leaderBlock, "rect", { x: 640, y: 812, width: 376, height: 196, rx: 10, fill: C.panel, stroke: C.rule });
+  el(leaderBlock, "text", { x: 664, y: 846, class: "mono", "font-size": 15, fill: C.muted }, "LEADING COUNTRY");
+  const lbName = el(leaderBlock, "text", { x: 664, y: 896, "font-size": 40, "font-weight": 750, "font-stretch": "76%", fill: C.ink });
+  const lbLine1 = el(leaderBlock, "text", { x: 664, y: 934, "font-size": 21, fill: C.ink2 });
+  const lbLine2 = el(leaderBlock, "text", { x: 664, y: 964, "font-size": 21, fill: C.ink2 });
+  const lbLine3 = el(leaderBlock, "text", { x: 664, y: 992, "font-size": 19, fill: C.muted });
+
+  // region race
+  const race = panel.append("g");
+  el(race, "line", { x1: 64, x2: 1016, y1: 1030, y2: 1030, stroke: C.rule });
+  const raceMax = regions[0].share, RACE_X = 340, RACE_W = 460;
+  const raceRows = regions.map((r, i) => {
+    const y = 1062 + i * 24;
+    const g = race.append("g");
+    return {
+      label: el(g, "text", { x: 64, y: y + 5, "font-size": 18, fill: C.muted }, r.name),
+      bar: el(g, "rect", { x: RACE_X, y: y - 7, height: 13, width: 0, fill: C.chat }),
+      value: el(g, "text", { x: RACE_X, y: y + 5, "font-size": 17, "font-weight": 600, fill: C.ink2 }),
+      leader: el(g, "text", { x: 1016, y: y + 5, "font-size": 17, fill: C.muted, "text-anchor": "end" }, r.leader.name),
+    };
+  });
+
+  // summary block
+  const top = regions[0];
+  const summary = panel.append("g");
+  el(summary, "text", { x: 64, y: 832, class: "mono", "font-size": 16, fill: C.muted }, `${period.label.toUpperCase()} · ALL 9 REGIONS`);
+  const sumLines = top.name === "North America"
+    ? ["North America leads Claude chat", `with ${pct(top.share)} of global use`]
+    : [`${top.name} now out-uses`, `North America: ${pct(top.share)} vs ${pct(northAmerica.share)}`];
+  el(summary, "text", { x: 64, y: 896, "font-size": 50, "font-weight": 750, "font-stretch": "74%", fill: C.ink }, sumLines[0]);
+  el(summary, "text", { x: 64, y: 952, "font-size": 50, "font-weight": 750, "font-stretch": "74%", fill: C.ink }, sumLines[1]);
+  el(summary, "text", { x: 64, y: 1000, "font-size": 22, fill: C.ink2 }, `Leaders: ${regions.slice(0, 5).map(r => r.leader.name).join(", ")} and more.`);
+
+  // Claude Code block
+  const code = svg.append("g");
+  el(code, "line", { x1: 64, x2: 1016, y1: 792, y2: 792, stroke: C.ink, "stroke-width": 2 });
+  el(code, "text", { x: 64, y: 832, class: "mono", "font-size": 16, fill: C.muted }, "CLAUDE CHAT VS CLAUDE CODE");
+  el(code, "text", { x: 64, y: 886, "font-size": 44, "font-weight": 750, "font-stretch": "74%", fill: C.ink }, "Claude Code is at least 18% of");
+  el(code, "text", { x: 64, y: 936, "font-size": 44, "font-weight": 750, "font-stretch": "74%", fill: C.ink }, "Anthropic's run-rate revenue");
+  const revTrack = el(code, "rect", { x: 64, y: 958, height: 38, width: 0, fill: C.track });
+  const revCode = el(code, "rect", { x: 64, y: 958, height: 38, width: 0, fill: C.code });
+  const revLeft = el(code, "text", { x: 64, y: 1024, "font-size": 21, "font-weight": 650, fill: C.ink }, "Claude Code >$2.5B");
+  const revRight = el(code, "text", { x: 1016, y: 1024, "font-size": 19, fill: C.muted, "text-anchor": "end" }, "of $14B total run-rate · Anthropic, Feb 2026");
+  el(code, "line", { x1: 64, x2: 1016, y1: 1046, y2: 1046, stroke: C.rule });
+  el(code, "text", { x: 64, y: 1078, class: "mono", "font-size": 14, fill: C.muted }, "SHARE OF GLOBAL USE");
+  const legend = code.append("g");
+  el(legend, "rect", { x: 610, y: 1066, width: 13, height: 13, rx: 2, fill: C.chat });
+  el(legend, "text", { x: 630, y: 1078, "font-size": 17, fill: C.ink2 }, "Chat (measured)");
+  el(legend, "rect", { x: 790, y: 1066, width: 13, height: 13, rx: 2, fill: C.code });
+  el(legend, "text", { x: 810, y: 1078, "font-size": 17, fill: C.ink2 }, "Claude Code (modelled)");
+  const codeCountries = ["USA", "IND", "BRA", "FRA"].filter(iso => aei.countries[iso]?.p[pid] && codeShare[iso] != null);
+  const codeMax = d3.max(codeCountries, iso => Math.max(aei.countries[iso].p[pid].share, codeShare[iso]));
+  const codeRows = codeCountries.map((iso, i) => {
+    const y = 1100 + i * 46, g = code.append("g");
+    el(g, "text", { x: 64, y: y + 24, "font-size": 23, "font-weight": 600, fill: C.ink }, aei.countries[iso].name);
+    return {
+      chat: aei.countries[iso].p[pid].share, code: codeShare[iso],
+      chatBar: el(g, "rect", { x: 280, y: y + 4, height: 14, width: 0, fill: C.chat }),
+      codeBar: el(g, "rect", { x: 280, y: y + 22, height: 14, width: 0, fill: C.code }),
+      chatVal: el(g, "text", { y: y + 16, "font-size": 16, "font-weight": 600, fill: C.ink2 }),
+      codeVal: el(g, "text", { y: y + 34, "font-size": 16, "font-weight": 600, fill: C.ink2 }),
+    };
+  });
+
+  // footer
+  const footer = svg.append("g");
+  el(footer, "text", { x: 64, y: 1300, "font-size": 15, fill: C.muted }, `Chat: Anthropic Economic Index, ${period.label}. Claude Code by country and user counts are estimates. Independent analysis.`);
+  el(footer, "text", { x: 64, y: 1326, class: "mono", "font-size": 15, fill: C.accent, "letter-spacing": "0" }, "christoferarceg-source.github.io/claude-adoption-atlas");
+
+  // outro
+  const outro = svg.append("g");
+  el(outro, "rect", { x: 0, y: 0, width: W, height: H, fill: C.ground, opacity: .9 });
+  el(outro, "text", { x: 64, y: 470, class: "mono", "font-size": 18, fill: C.muted }, "CLAUDE ADOPTION ATLAS");
+  el(outro, "text", { x: 64, y: 560, "font-size": 88, "font-weight": 750, "font-stretch": "72%", fill: C.ink }, "Explore the");
+  el(outro, "text", { x: 64, y: 646, "font-size": 88, "font-weight": 750, "font-stretch": "72%", fill: C.ink }, "interactive atlas");
+  el(outro, "text", { x: 64, y: 712, class: "mono", "font-size": 27, fill: C.accent, "letter-spacing": "0" }, "christoferarceg-source.github.io/claude-adoption-atlas");
+  [`Drill down to ${d3.format(",")(mappedRegions)} states and provinces`, "Estimated users, adoption and Claude Code lean", "Refreshed daily from public data"]
+    .forEach((line, i) => {
+      el(outro, "rect", { x: 64, y: 780 + i * 48, width: 10, height: 10, rx: 2, fill: i === 2 ? C.code : C.chat });
+      el(outro, "text", { x: 90, y: 791 + i * 48, "font-size": 28, fill: C.ink2 }, line);
+    });
+  ["Sources: Anthropic Economic Index (" + period.label + "); Anthropic Series G announcement (Feb 2026);",
+   "GitHub Innovation Graph; JetBrains Developer Ecosystem Survey 2026; Sensor Tower; Reuters.",
+   "User counts and Claude Code by country are estimates. Independent analysis, not affiliated with Anthropic."]
+    .forEach((line, i) => el(outro, "text", { x: 64, y: 1212 + i * 28, "font-size": 18, fill: C.muted }, line));
+
+  // ---------- timeline ----------
+  const INTRO = 3.2, SEG = 2.7, N = regions.length, REG_END = INTRO + N * SEG, SUMMARY = 3.4, CODE = 8.6, OUTRO = 5;
+  const CODE_START = REG_END + SUMMARY, OUTRO_START = CODE_START + CODE, TOTAL = OUTRO_START + OUTRO;
+  let lastLeader = null;
+
+  function seek(t) {
+    // camera
+    let view = WORLD_VIEW, active = -1, segT = 0;
+    if (t >= INTRO && t < REG_END) {
+      active = Math.min(N - 1, Math.floor((t - INTRO) / SEG));
+      segT = (t - INTRO - active * SEG) / SEG;
+      const from = active === 0 ? WORLD_VIEW : regions[active - 1].view;
+      view = interpView(from, regions[active].view, ease(clamp(segT / 0.3)));
+    } else if (t >= REG_END && t < CODE_START) {
+      view = interpView(regions[N - 1].view, WORLD_VIEW, ease(ramp(t, REG_END, 1.0)));
+    }
+    gMap.attr("transform", `translate(${MAP_CX - view.x * view.k},${MAP_CY - view.y * view.k}) scale(${view.k})`);
+
+    // map colours and focus
+    const mapIn = ease(ramp(t, 0.2, 1.2));
+    const codeMix = ease(ramp(t, CODE_START + 0.3, 1.2));
+    const focus = active >= 0 ? regions[active].name : null;
+    const dimAmount = active >= 0 ? ease(clamp(segT / 0.25)) : 0;
+    countryPaths
+      .attr("fill", (d, i) => codeMix > 0 ? d3.interpolateRgb(colors[i].chat, colors[i].code)(codeMix) : colors[i].chat)
+      .attr("opacity", (d, i) => {
+        const base = mapIn * (t >= OUTRO_START ? 1 - 0.6 * ease(ramp(t, OUTRO_START, 0.8)) : 1);
+        if (!focus) return base;
+        const prevFocus = active > 0 ? regions[active - 1].name : null;
+        const wasDim = prevFocus && colors[i].region !== prevFocus ? 1 : 0;
+        const isDim = colors[i].region !== focus ? 1 : 0;
+        const dim = wasDim + (isDim - wasDim) * dimAmount;
+        return base * (1 - 0.72 * dim);
+      });
+    mapCaption.text(t >= CODE_START + 0.6 ? "MAP: MODELLED SHARE OF CLAUDE CODE USE" : "MAP: SHARE OF CLAUDE CHAT CONVERSATIONS")
+      .attr("opacity", mapIn * (t >= OUTRO_START ? 0 : 1));
+
+    // leader outline and pin
+    const leaderShow = active >= 0 ? ease(ramp(segT, 0.34, 0.14)) * (1 - ease(ramp(segT, 0.93, 0.07))) : 0;
+    if (active >= 0) {
+      const r = regions[active];
+      if (lastLeader !== r.leader.iso) { outline.attr("d", r.leader.d); lastLeader = r.leader.iso; }
+      const [sx, sy] = toScreen(view, r.leader.anchor);
+      pinDot.attr("cx", sx).attr("cy", sy);
+      const pulse = 13 + 10 * ((segT * 3) % 1);
+      pinRing.attr("cx", sx).attr("cy", sy).attr("r", pulse).attr("opacity", leaderShow * (1 - ((segT * 3) % 1)));
+      pinTagText.text(r.leader.name);
+      const tagW = pinTagText.node().getComputedTextLength() + 24;
+      const tx = clamp(sx + 20, 20, W - tagW - 20), ty = clamp(sy - 52, 200, 740);
+      pinTag.attr("transform", `translate(${tx},${ty})`);
+      pinTagBg.attr("width", tagW);
+    }
+    outline.attr("opacity", leaderShow);
+    pinDot.attr("opacity", leaderShow);
+    pinTag.attr("opacity", leaderShow);
+    if (active < 0) pinRing.attr("opacity", 0);
+
+    // panel: intro / region / summary
+    const introOp = ease(ramp(t, 0.5, 0.8)) * (1 - ease(ramp(t, INTRO - 0.4, 0.4)));
+    intro.attr("opacity", introOp);
+    const regionOp = active >= 0 ? ease(ramp(t, INTRO, 0.3)) : (t >= REG_END ? 1 - ease(ramp(t, REG_END, 0.35)) : 0);
+    regionBlock.attr("opacity", regionOp);
+    if (active >= 0) {
+      const r = regions[active];
+      const countUp = ease(ramp(segT, 0.12, 0.35));
+      rbLabel.text(`REGION ${active + 1} OF ${N}`);
+      rbName.text(r.name);
+      rbShare.text(pct(r.share * countUp));
+      rbCap2.text(`est. ${users(r.share)} monthly users`);
+      const lf = ease(ramp(segT, 0.36, 0.14));
+      leaderBlock.attr("opacity", lf).attr("transform", `translate(${(1 - lf) * 24},0)`);
+      lbName.text(r.leader.name);
+      lbLine1.text(`${pct(r.leader.share)} of global chat use`);
+      lbLine2.text(`${Math.round(r.leader.ofRegion)}% of ${r.name.split(" ")[0] === "Middle" ? "the region" : "the region"}'s use`);
+      lbLine3.text(`est. ${users(r.leader.share)} monthly users`);
+    }
+    const summaryOp = ease(ramp(t, REG_END + 0.35, 0.5)) * (1 - ease(ramp(t, CODE_START - 0.1, 0.4)));
+    summary.attr("opacity", summaryOp);
+
+    // region race bars
+    const raceOp = ease(ramp(t, INTRO, 0.4)) * (1 - ease(ramp(t, CODE_START - 0.1, 0.4)));
+    race.attr("opacity", raceOp);
+    raceRows.forEach((row, i) => {
+      const progress = t >= REG_END ? 1 : i < active ? 1 : i === active ? ease(ramp(segT, 0.1, 0.5)) : 0;
+      const w = RACE_W * regions[i].share / raceMax * progress;
+      const isActive = i === active;
+      row.bar.attr("width", w).attr("opacity", isActive || t >= REG_END ? 1 : 0.55);
+      row.value.attr("x", RACE_X + w + 8).text(progress > 0 ? pct(regions[i].share * progress) : "").attr("fill", isActive ? C.ink : C.ink2);
+      row.label.attr("fill", isActive ? C.ink : progress > 0 ? C.ink2 : C.muted).attr("font-weight", isActive ? 650 : 400);
+      row.leader.attr("opacity", progress >= 1 || (isActive && segT > 0.4) ? 1 : 0).attr("fill", isActive ? C.ink : C.muted);
+    });
+
+    // Claude Code scene
+    const codeOp = ease(ramp(t, CODE_START + 0.2, 0.5)) * (1 - ease(ramp(t, OUTRO_START - 0.2, 0.5)));
+    code.attr("opacity", codeOp);
+    const u = t - CODE_START;
+    revTrack.attr("width", 952 * ease(ramp(u, 1.0, 0.9)));
+    revCode.attr("width", 952 * (2.5 / 14) * ease(ramp(u, 1.9, 0.8)));
+    revLeft.attr("opacity", ease(ramp(u, 2.3, 0.4)));
+    revRight.attr("opacity", ease(ramp(u, 1.6, 0.4)));
+    codeRows.forEach((row, i) => {
+      const g1 = ease(ramp(u, 3.2 + i * 0.25, 0.8)), g2 = ease(ramp(u, 3.5 + i * 0.25, 0.8));
+      const cw = 560 * row.chat / codeMax * g1, kw = 560 * row.code / codeMax * g2;
+      row.chatBar.attr("width", cw);
+      row.codeBar.attr("width", kw);
+      row.chatVal.attr("x", 280 + cw + 8).text(g1 > 0 ? pct(row.chat * g1) : "");
+      row.codeVal.attr("x", 280 + kw + 8).text(g2 > 0 ? pct(row.code * g2) : "");
+    });
+
+    // header, footer, outro
+    const endFade = 1 - ease(ramp(t, OUTRO_START, 0.5));
+    header.attr("opacity", ease(ramp(t, 0, 0.6)) * endFade);
+    footer.attr("opacity", ease(ramp(t, 0.8, 0.6)) * endFade);
+    panel.attr("opacity", 1);
+    outro.attr("opacity", ease(ramp(t, OUTRO_START + 0.3, 0.7)));
+  }
+
+  window.TOTAL = TOTAL;
+  window.POSTER = INTRO + 0.75 * SEG;
+  window.seek = seek;
+  seek(window.POSTER);
+  window.ready = true;
+}
+main();
+</script>
+</body>
+</html>

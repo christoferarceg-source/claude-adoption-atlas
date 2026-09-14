@@ -30,7 +30,8 @@ by_iso2 = {c["iso2"]: c for c in aei["countries"].values() if c.get("iso2")}
 rows = [{"name": by_iso2[k]["name"], "chat": by_iso2[k]["p"][pid]["share"], "code": 100 * w / total}
         for k, w in weights.items() if k in by_iso2 and pid in by_iso2[k]["p"]]
 rows.sort(key=lambda r: -r["code"])
-top = rows[:8]
+# Largest Claude Code markets, plus France as the clearest chat-leaning contrast.
+top = rows[:5] + [r for r in rows[5:] if r["name"] == "France"]
 
 us = aei["countries"]["USA"]["p"][pid]["share"]
 europe = aei["regions"]["Europe & Central Asia"]["p"][pid]["share"]
@@ -54,7 +55,7 @@ page = f"""<!doctype html>
 <style>
 * {{ box-sizing: border-box; margin: 0; }}
 html, body {{ width: 1080px; height: 1350px; background: #0B1320; overflow: hidden; }}
-body {{ font-family: "Archivo", "Arial Narrow", sans-serif; color: #EEF3F7; padding: 58px 64px 50px; display: flex; flex-direction: column; gap: 28px; -webkit-font-smoothing: antialiased; }}
+body {{ font-family: "Archivo", "Arial Narrow", sans-serif; color: #EEF3F7; padding: 58px 64px 50px; display: flex; flex-direction: column; gap: 22px; -webkit-font-smoothing: antialiased; }}
 .eyebrow {{ font-family: "IBM Plex Mono", monospace; font-size: 18px; letter-spacing: .08em; text-transform: uppercase; color: #93A3B3; }}
 h1 {{ font-stretch: 72%; font-weight: 750; font-size: 80px; line-height: .95; letter-spacing: -.01em; margin-top: 12px; text-wrap: balance; }}
 .dek {{ font-size: 25px; line-height: 1.35; color: #C3CFDA; max-width: 920px; }}
@@ -76,7 +77,16 @@ h1 {{ font-stretch: 72%; font-weight: 750; font-size: 80px; line-height: .95; le
 .bar b {{ font-size: 17px; font-weight: 600; color: #DDE6EE; font-variant-numeric: tabular-nums; }}
 .chat span {{ background: #3987e5; }}
 .code span {{ background: #d95926; }}
-.facts {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; border-top: 1px solid #22324A; padding-top: 18px; }}
+.facts {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 26px; }}
+.revenue {{ display: grid; gap: 10px; border-top: 1px solid #22324A; padding-top: 18px; }}
+.rev-head {{ display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }}
+.rev-t {{ font-stretch: 78%; font-weight: 700; font-size: 31px; }}
+.rev-s {{ font-family: "IBM Plex Mono", monospace; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: #93A3B3; white-space: nowrap; }}
+.rev-bar {{ height: 28px; background: #2A3A52; border-radius: 0 5px 5px 0; overflow: hidden; }}
+.rev-code {{ display: block; height: 100%; width: 17.9%; background: #d95926; }}
+.rev-labels {{ display: flex; justify-content: space-between; gap: 16px; font-size: 18px; color: #C3CFDA; }}
+.rev-labels b {{ color: #EEF3F7; font-weight: 650; }}
+.sw {{ display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 8px; vertical-align: 0; }}
 .fact .v {{ font-stretch: 74%; font-weight: 750; font-size: 46px; line-height: 1; }}
 .fact .l {{ font-size: 18px; line-height: 1.3; color: #C3CFDA; margin-top: 6px; }}
 .foot {{ margin-top: auto; display: flex; justify-content: space-between; gap: 28px; align-items: end; font-size: 14.5px; color: #93A3B3; line-height: 1.4; }}
@@ -104,14 +114,19 @@ h1 {{ font-stretch: 72%; font-weight: 750; font-size: 80px; line-height: .95; le
     </div>
   </div>
 
+  <div class="revenue">
+    <div class="rev-head"><span class="rev-t">Claude Code is at least 18% of Anthropic's run-rate revenue</span><span class="rev-s">Anthropic · Feb 2026</span></div>
+    <div class="rev-bar"><span class="rev-code"></span></div>
+    <div class="rev-labels"><span><i class="sw" style="background:#d95926"></i><b>Claude Code &gt;$2.5B</b></span><span><i class="sw" style="background:#2A3A52"></i>API, Claude apps &amp; enterprise &lt;$11.5B · total $14B</span></div>
+  </div>
+
   <div class="facts">
     <div class="fact"><div class="v">39%</div><div class="l">of professional developers use Claude Code at work (JetBrains, 2026)</div></div>
-    <div class="fact"><div class="v">~18%</div><div class="l">of Anthropic's revenue run-rate came from Claude Code (Feb 2026)</div></div>
     <div class="fact"><div class="v">54% vs 10%</div><div class="l">of sessions run on Opus: Claude Code vs chat (Anthropic, Jun 2026)</div></div>
   </div>
 
   <div class="foot">
-    <p>Chat: Anthropic Economic Index, {period['label']}. Claude Code by country: modelled from GitHub developer counts ({devs['quarter']}), US-adjusted with JetBrains 2026. User totals: third-party estimates (Sensor Tower; Reuters). Independent analysis, not affiliated with Anthropic.</p>
+    <p>Chat: Anthropic Economic Index, {period['label']}. Claude Code by country: modelled from GitHub developer counts ({devs['quarter']}), US-adjusted with JetBrains 2026. Revenue: Anthropic Series G announcement. User totals: third-party estimates (Sensor Tower; Reuters). Independent analysis, not affiliated with Anthropic.</p>
     <span class="url">christoferarceg-source.github.io/claude-adoption-atlas</span>
   </div>
 </body></html>

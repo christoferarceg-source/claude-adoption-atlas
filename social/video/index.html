@@ -53,9 +53,10 @@ function fixWinding(feature) {
 
 async function main() {
   const load = u => fetch(u).then(r => r.json());
-  const [aei, devs, world, geoIndex] = await Promise.all([
+  const [aei, devs, world, geoIndex, mxSubs, mxGeo] = await Promise.all([
     load("../../docs/data/aei.json"), load("../../docs/data/developers.json"),
     load("../../docs/geo/world.json"), load("../../docs/geo/admin1/index.json"),
+    load("../../docs/data/subregions/MX.json").catch(() => null), load("../../docs/geo/admin1/MX.json").catch(() => null),
   ]);
   await Promise.all(["750 64px Archivo", "600 22px Archivo", "400 18px Archivo", "400 16px 'IBM Plex Mono'"].map(f => document.fonts.load(f)));
 
@@ -134,6 +135,31 @@ async function main() {
   }
   const toScreen = (v, [px, py]) => [MAP_CX + (px - v.x) * v.k, MAP_CY + (py - v.y) * v.k];
 
+  // Tour steps: every region, plus a Mexico spotlight right after Latin America & Caribbean.
+  const steps = regions.map((r, i) => ({
+    type: "region", raceIdx: i, view: r.view, region: r,
+    pin: { iso: r.leader.iso, name: r.leader.name, anchor: r.leader.anchor, d: r.leader.d },
+  }));
+  const latam = regions.findIndex(r => r.name === "Latin America & Caribbean");
+  const mex = aei.countries.MEX?.p[pid];
+  if (latam >= 0 && mex && byIso.has("MEX")) {
+    const polys = mainPolys(byIso.get("MEX"));
+    const [[x0, y0], [x1, y1]] = path.bounds({ type: "GeometryCollection", geometries: polys });
+    const k = Math.min(6, 0.7 / Math.max((x1 - x0) / MAP_W, (y1 - y0) / 560));
+    const biggest = polys.reduce((a, b) => (path.area(b) > path.area(a) ? b : a), polys[0]);
+    const subs = mxSubs?.p[pid] || {};
+    const topCode = Object.keys(subs).filter(c => subs[c].share != null).sort((a, b) => subs[b].share - subs[a].share)[0];
+    const topName = mxGeo?.objects.subregions.geometries.find(g => g.properties.code === topCode)?.properties.name || topCode;
+    steps.splice(latam + 1, 0, {
+      type: "spot", raceIdx: latam, iso: "MEX", view: { x: (x0 + x1) / 2, y: (y0 + y1) / 2, k },
+      share: mex.share, aui: mex.aui, regionName: regions[latam].name,
+      rank: regions[latam].members.findIndex(([iso]) => iso === "MEX") + 1,
+      top: topCode ? { name: topName, ofCountry: subs[topCode].share } : null,
+      pin: { iso: "MEX", name: "Mexico", anchor: path.centroid(biggest), d: path(byIso.get("MEX")) },
+    });
+  }
+  const inFocus = (step, i) => (step.type === "spot" ? features[i].properties.iso3 === step.iso : colors[i].region === step.region.name);
+
   const chatScale = d3.scaleThreshold([0.1, 0.25, 0.5, 1, 2], CHAT_RAMP);
   const codeScale = d3.scaleThreshold([0.25, 0.5, 1, 2, 5], CODE_RAMP);
   const colors = features.map(ft => {
@@ -165,7 +191,7 @@ async function main() {
   const rbCap2 = el(regionBlock, "text", { x: 360, y: 992, "font-size": 21, fill: C.muted });
   const leaderBlock = regionBlock.append("g");
   el(leaderBlock, "rect", { x: 640, y: 812, width: 376, height: 196, rx: 10, fill: C.panel, stroke: C.rule });
-  el(leaderBlock, "text", { x: 664, y: 846, class: "mono", "font-size": 15, fill: C.muted }, "LEADING COUNTRY");
+  const lbHead = el(leaderBlock, "text", { x: 664, y: 846, class: "mono", "font-size": 15, fill: C.muted }, "LEADING COUNTRY");
   const lbName = el(leaderBlock, "text", { x: 664, y: 896, "font-size": 40, "font-weight": 750, "font-stretch": "76%", fill: C.ink });
   const lbLine1 = el(leaderBlock, "text", { x: 664, y: 934, "font-size": 21, fill: C.ink2 });
   const lbLine2 = el(leaderBlock, "text", { x: 664, y: 964, "font-size": 21, fill: C.ink2 });
@@ -256,7 +282,7 @@ async function main() {
   el(outro, "text", { x: 64, y: 1098, class: "mono", "font-size": 22, fill: C.accent, "letter-spacing": "0" }, "christoferarceg-source.github.io/christoferarce-site");
 
   // ---------- timeline ----------
-  const INTRO = 3.2, SEG = 2.7, N = regions.length, REG_END = INTRO + N * SEG, SUMMARY = 3.4, CODE = 8.6, OUTRO = 5;
+  const INTRO = 3.2, SEG = 2.7, N = steps.length, REG_END = INTRO + N * SEG, SUMMARY = 3.4, CODE = 8.6, OUTRO = 5;
   const CODE_START = REG_END + SUMMARY, OUTRO_START = CODE_START + CODE, TOTAL = OUTRO_START + OUTRO;
   let lastLeader = null;
 
@@ -266,26 +292,26 @@ async function main() {
     if (t >= INTRO && t < REG_END) {
       active = Math.min(N - 1, Math.floor((t - INTRO) / SEG));
       segT = (t - INTRO - active * SEG) / SEG;
-      const from = active === 0 ? WORLD_VIEW : regions[active - 1].view;
-      view = interpView(from, regions[active].view, ease(clamp(segT / 0.3)));
+      const from = active === 0 ? WORLD_VIEW : steps[active - 1].view;
+      view = interpView(from, steps[active].view, ease(clamp(segT / 0.3)));
     } else if (t >= REG_END && t < CODE_START) {
-      view = interpView(regions[N - 1].view, WORLD_VIEW, ease(ramp(t, REG_END, 1.0)));
+      view = interpView(steps[N - 1].view, WORLD_VIEW, ease(ramp(t, REG_END, 1.0)));
     }
     gMap.attr("transform", `translate(${MAP_CX - view.x * view.k},${MAP_CY - view.y * view.k}) scale(${view.k})`);
 
     // map colours and focus
     const mapIn = ease(ramp(t, 0.2, 1.2));
     const codeMix = ease(ramp(t, CODE_START + 0.3, 1.2));
-    const focus = active >= 0 ? regions[active].name : null;
+    const step = active >= 0 ? steps[active] : null;
     const dimAmount = active >= 0 ? ease(clamp(segT / 0.25)) : 0;
     countryPaths
       .attr("fill", (d, i) => codeMix > 0 ? d3.interpolateRgb(colors[i].chat, colors[i].code)(codeMix) : colors[i].chat)
       .attr("opacity", (d, i) => {
         const base = mapIn * (t >= OUTRO_START ? 1 - 0.6 * ease(ramp(t, OUTRO_START, 0.8)) : 1);
-        if (!focus) return base;
-        const prevFocus = active > 0 ? regions[active - 1].name : null;
-        const wasDim = prevFocus && colors[i].region !== prevFocus ? 1 : 0;
-        const isDim = colors[i].region !== focus ? 1 : 0;
+        if (!step) return base;
+        const prev = active > 0 ? steps[active - 1] : null;
+        const wasDim = prev && !inFocus(prev, i) ? 1 : 0;
+        const isDim = inFocus(step, i) ? 0 : 1;
         const dim = wasDim + (isDim - wasDim) * dimAmount;
         return base * (1 - 0.72 * dim);
       });
@@ -295,13 +321,13 @@ async function main() {
     // leader outline and pin
     const leaderShow = active >= 0 ? ease(ramp(segT, 0.34, 0.14)) * (1 - ease(ramp(segT, 0.93, 0.07))) : 0;
     if (active >= 0) {
-      const r = regions[active];
-      if (lastLeader !== r.leader.iso) { outline.attr("d", r.leader.d); lastLeader = r.leader.iso; }
-      const [sx, sy] = toScreen(view, r.leader.anchor);
+      const pin = steps[active].pin;
+      if (lastLeader !== pin.iso) { outline.attr("d", pin.d); lastLeader = pin.iso; }
+      const [sx, sy] = toScreen(view, pin.anchor);
       pinDot.attr("cx", sx).attr("cy", sy);
       const pulse = 13 + 10 * ((segT * 3) % 1);
       pinRing.attr("cx", sx).attr("cy", sy).attr("r", pulse).attr("opacity", leaderShow * (1 - ((segT * 3) % 1)));
-      pinTagText.text(r.leader.name);
+      pinTagText.text(pin.name);
       const tagW = pinTagText.node().getComputedTextLength() + 24;
       const tx = clamp(sx + 20, 20, W - tagW - 20), ty = clamp(sy - 52, 200, 740);
       pinTag.attr("transform", `translate(${tx},${ty})`);
@@ -317,19 +343,34 @@ async function main() {
     intro.attr("opacity", introOp);
     const regionOp = active >= 0 ? ease(ramp(t, INTRO, 0.3)) : (t >= REG_END ? 1 - ease(ramp(t, REG_END, 0.35)) : 0);
     regionBlock.attr("opacity", regionOp);
-    if (active >= 0) {
-      const r = regions[active];
+    if (step) {
       const countUp = ease(ramp(segT, 0.12, 0.35));
-      rbLabel.text(`REGION ${active + 1} OF ${N}`);
-      rbName.text(r.name);
-      rbShare.text(pct(r.share * countUp));
-      rbCap2.text(`est. ${users(r.share)} monthly users`);
       const lf = ease(ramp(segT, 0.36, 0.14));
-      leaderBlock.attr("opacity", lf).attr("transform", `translate(${(1 - lf) * 24},0)`);
-      lbName.text(r.leader.name);
-      lbLine1.text(`${pct(r.leader.share)} of global chat use`);
-      lbLine2.text(`${Math.round(r.leader.ofRegion)}% of ${r.name.split(" ")[0] === "Middle" ? "the region" : "the region"}'s use`);
-      lbLine3.text(`est. ${users(r.leader.share)} monthly users`);
+      leaderBlock.attr("opacity", step.type === "spot" && !step.top ? 0 : lf).attr("transform", `translate(${(1 - lf) * 24},0)`);
+      if (step.type === "region") {
+        const r = step.region;
+        rbLabel.text(`REGION ${step.raceIdx + 1} OF ${regions.length}`);
+        rbName.text(r.name);
+        rbShare.text(pct(r.share * countUp));
+        rbCap2.text(`est. ${users(r.share)} monthly users`);
+        lbHead.text("LEADING COUNTRY");
+        lbName.text(r.leader.name);
+        lbLine1.text(`${pct(r.leader.share)} of global chat use`);
+        lbLine2.text(`${Math.round(r.leader.ofRegion)}% of the region's use`);
+        lbLine3.text(`est. ${users(r.leader.share)} monthly users`);
+      } else {
+        rbLabel.text(`SPOTLIGHT · #${step.rank} IN ${step.regionName.toUpperCase()}`);
+        rbName.text("Mexico");
+        rbShare.text(pct(step.share * countUp));
+        rbCap2.text(`est. ${users(step.share)} monthly users`);
+        if (step.top) {
+          lbHead.text("LARGEST STATE");
+          lbName.text(step.top.name);
+          lbLine1.text(`${Math.round(step.top.ofCountry)}% of Mexico's chat use`);
+          lbLine2.text(`Intensity (AUI): ${step.aui.toFixed(2)}`);
+          lbLine3.text(`est. ${users(step.share * step.top.ofCountry / 100)} monthly users`);
+        }
+      }
     }
     const summaryOp = ease(ramp(t, REG_END + 0.35, 0.5)) * (1 - ease(ramp(t, CODE_START - 0.1, 0.4)));
     summary.attr("opacity", summaryOp);
@@ -337,14 +378,15 @@ async function main() {
     // region race bars
     const raceOp = ease(ramp(t, INTRO, 0.4)) * (1 - ease(ramp(t, CODE_START - 0.1, 0.4)));
     race.attr("opacity", raceOp);
+    const raceActive = step ? step.raceIdx : -1, raceT = step?.type === "spot" ? 1 : segT;
     raceRows.forEach((row, i) => {
-      const progress = t >= REG_END ? 1 : i < active ? 1 : i === active ? ease(ramp(segT, 0.1, 0.5)) : 0;
+      const progress = t >= REG_END ? 1 : i < raceActive ? 1 : i === raceActive ? ease(ramp(raceT, 0.1, 0.5)) : 0;
       const w = RACE_W * regions[i].share / raceMax * progress;
-      const isActive = i === active;
+      const isActive = i === raceActive;
       row.bar.attr("width", w).attr("opacity", isActive || t >= REG_END ? 1 : 0.55);
       row.value.attr("x", RACE_X + w + 8).text(progress > 0 ? pct(regions[i].share * progress) : "").attr("fill", isActive ? C.ink : C.ink2);
       row.label.attr("fill", isActive ? C.ink : progress > 0 ? C.ink2 : C.muted).attr("font-weight", isActive ? 650 : 400);
-      row.leader.attr("opacity", progress >= 1 || (isActive && segT > 0.4) ? 1 : 0).attr("fill", isActive ? C.ink : C.muted);
+      row.leader.attr("opacity", progress >= 1 || (isActive && raceT > 0.4) ? 1 : 0).attr("fill", isActive ? C.ink : C.muted);
     });
 
     // Claude Code scene
